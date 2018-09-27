@@ -317,7 +317,8 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
         ImmutableIntList.of(argOrdinal),
         filter,
         aggFunction.inferReturnType(binding),
-        null);
+        null,
+        oldCall.getOrdering());
   }
 
   private RexNode reduceAvg(
@@ -342,7 +343,8 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
             oldAggRel.getGroupCount(),
             oldAggRel.getInput(),
             null,
-            null);
+            null,
+            oldCall.getOrdering());
     final AggregateCall countCall =
         AggregateCall.create(SqlStdOperatorTable.COUNT,
             oldCall.isDistinct(),
@@ -352,7 +354,8 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
             oldAggRel.getGroupCount(),
             oldAggRel.getInput(),
             null,
-            null);
+            null,
+            oldCall.getOrdering());
 
     // NOTE:  these references are with respect to the output
     // of newAggRel
@@ -397,7 +400,7 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
         AggregateCall.create(SqlStdOperatorTable.SUM0, oldCall.isDistinct(),
             oldCall.isApproximate(), oldCall.getArgList(), oldCall.filterArg,
             oldAggRel.getGroupCount(), oldAggRel.getInput(), null,
-            oldCall.name);
+            oldCall.name, oldCall.getOrdering());
     final AggregateCall countCall =
         AggregateCall.create(SqlStdOperatorTable.COUNT,
             oldCall.isDistinct(),
@@ -407,7 +410,8 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
             oldAggRel.getGroupCount(),
             oldAggRel,
             null,
-            null);
+            null,
+            oldCall.getOrdering());
 
     // NOTE:  these references are with respect to the output
     // of newAggRel
@@ -497,7 +501,8 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
             oldAggRel.getGroupCount(),
             oldAggRel.getInput(),
             null,
-            null);
+            null,
+            oldCall.getOrdering());
 
     final RexNode sumArg =
         rexBuilder.addAggCall(sumArgAggCall,
@@ -520,7 +525,8 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
             oldAggRel.getGroupCount(),
             oldAggRel,
             null,
-            null);
+            null,
+            oldCall.getOrdering());
 
     final RexNode countArg =
         rexBuilder.addAggCall(countArgAggCall,
@@ -592,7 +598,8 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
             oldAggRel.getGroupCount(),
             oldAggRel.getInput(),
             null,
-            null);
+            null,
+            oldCall.getOrdering());
     return rexBuilder.addAggCall(aggregateCall,
         oldAggRel.getGroupCount(),
         oldAggRel.indicator,
@@ -637,7 +644,8 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
             oldAggRel.getGroupCount(),
             oldAggRel,
             null,
-            null);
+            null,
+            oldCall.getOrdering());
 
     return oldAggRel.getCluster().getRexBuilder().addAggCall(countArgAggCall,
         oldAggRel.getGroupCount(),

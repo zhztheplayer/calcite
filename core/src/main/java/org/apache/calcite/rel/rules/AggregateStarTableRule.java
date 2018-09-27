@@ -236,7 +236,7 @@ public class AggregateStarTableRule extends RelOptRule {
       }
       return AggregateCall.create(roll, false,
           aggregateCall.isApproximate(), ImmutableList.of(offset + i), -1,
-          groupCount, relBuilder.peek(), null, aggregateCall.name);
+          groupCount, relBuilder.peek(), null, aggregateCall.name, aggregateCall.getOrdering());
     }
 
     // Second, try to satisfy the aggregation based on group set columns.
@@ -252,7 +252,7 @@ public class AggregateStarTableRule extends RelOptRule {
       }
       return AggregateCall.create(aggregation, false,
           aggregateCall.isApproximate(), newArgs, -1,
-          groupCount, relBuilder.peek(), null, aggregateCall.name);
+          groupCount, relBuilder.peek(), null, aggregateCall.name, aggregateCall.getOrdering());
     }
 
     // No roll up possible.

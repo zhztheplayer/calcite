@@ -1195,6 +1195,7 @@ public abstract class AbstractMaterializedViewRule extends RelOptRule {
           return null;
         }
         aggregateCalls.add(
+            // todo handle aggregate ordering
             relBuilder.aggregateCall(
                 rollupAgg,
                 aggCall.isDistinct(), aggCall.isApproximate(), null,
@@ -1467,6 +1468,7 @@ public abstract class AbstractMaterializedViewRule extends RelOptRule {
                 return null;
               }
               aggregateCalls.add(
+                  // todo handle aggregate ordering
                   relBuilder.aggregateCall(
                       rollupAgg, queryAggCall.isDistinct(), queryAggCall.isApproximate(),
                       null, queryAggCall.name, rexBuilder.makeInputRef(input, k)));

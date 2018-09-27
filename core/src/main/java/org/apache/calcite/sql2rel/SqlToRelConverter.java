@@ -199,6 +199,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 import static org.apache.calcite.sql.SqlUtil.stripAs;
@@ -5026,6 +5027,26 @@ public class SqlToRelConverter {
         distinct = true;
         approximate = true;
       }
+      final RelCollation ordering;
+      if (aggFunction.ignoreAggregateOrder()) {
+        ordering = RelCollations.EMPTY;
+      } else {
+        SqlNodeList aggOrderList = call.getAggOrderList();
+        ordering = RelCollations.of(
+            aggOrderList.getList()
+                .stream()
+                .map(order ->
+                    bb.convertSortExpression(order,
+                        RelFieldCollation.Direction.ASCENDING,
+                        RelFieldCollation.NullDirection.UNSPECIFIED))
+                .map(rexFieldCollation ->
+                    new RelFieldCollation(
+                        lookupOrCreateGroupExpr(rexFieldCollation.left),
+                        rexFieldCollation.getDirection(),
+                        rexFieldCollation.getNullDirection()))
+                .collect(Collectors.toList())
+        );
+      }
       final AggregateCall aggCall =
           AggregateCall.create(
               aggFunction,
@@ -5034,7 +5055,8 @@ public class SqlToRelConverter {
               args,
               filterArg,
               type,
-              nameMap.get(outerCall.toString()));
+              nameMap.get(outerCall.toString()),
+              ordering);
       final AggregatingSelectScope.Resolved r =
           aggregatingSelectScope.resolved.get();
       RexNode rex =

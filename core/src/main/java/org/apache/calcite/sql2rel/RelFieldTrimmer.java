@@ -800,6 +800,10 @@ public class RelFieldTrimmer implements ReflectiveVisitor {
       if (aggCall.filterArg >= 0) {
         inputFieldsUsed.set(aggCall.filterArg);
       }
+      List<RelFieldCollation> fieldCollations = aggCall.getOrdering().getFieldCollations();
+      for (RelFieldCollation fieldCollation : fieldCollations) {
+        inputFieldsUsed.set(fieldCollation.getFieldIndex());
+      }
     }
 
     // Create input with trimmed columns.
@@ -869,7 +873,7 @@ public class RelFieldTrimmer implements ReflectiveVisitor {
         RelBuilder.AggCall newAggCall =
             relBuilder.aggregateCall(aggCall.getAggregation(),
                 aggCall.isDistinct(), aggCall.isApproximate(),
-                filterArg, aggCall.name, args);
+                filterArg, aggCall.name, args, relBuilder.fields(aggCall.ordering));
         mapping.set(j, groupCount + indicatorCount + newAggCallList.size());
         newAggCallList.add(newAggCall);
       }

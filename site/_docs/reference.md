@@ -1482,8 +1482,8 @@ Syntax:
 
 {% highlight sql %}
 aggregateCall:
-        agg( [ ALL | DISTINCT ] value [, value ]*) [ FILTER (WHERE condition) ]
-    |   agg(*) [ FILTER (WHERE condition) ]
+        agg( [ ALL | DISTINCT ] value [, value ]*) [ WITHIN GROUP (ORDER BY orderItem [, orderItem ]*) ] [ FILTER (WHERE condition) ]
+    |   agg(*) [ WITHIN GROUP (ORDER BY orderItem [, orderItem ]*) ] [ FILTER (WHERE condition) ]
 {% endhighlight %}
 
 If `FILTER` is present, the aggregate function only considers rows for which
@@ -1491,6 +1491,9 @@ If `FILTER` is present, the aggregate function only considers rows for which
 
 If `DISTINCT` is present, duplicate argument values are eliminated before being
 passed to the aggregate function.
+
+If `WITHIN GROUP` is present, the aggregate function firstly sorts the input rows using the
+ORDER BY clause inside WITHIN GROUP (...), then perform aggregate operation.
 
 | Operator syntax                    | Description
 |:---------------------------------- |:-----------

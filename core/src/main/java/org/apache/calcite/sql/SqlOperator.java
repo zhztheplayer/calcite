@@ -233,6 +233,28 @@ public abstract class SqlOperator {
    */
   public abstract SqlSyntax getSyntax();
 
+
+  /**
+   * Creates a call to this operand with an array of operands.
+   *
+   * <p>The position of the resulting call is the union of the <code>
+   * pos</code> and the positions of all of the operands.
+   *
+   * @param functionQualifier function qualifier (e.g. "DISTINCT"), may be
+   * @param orderList         order by node list of the call, typically used in
+   *                          aggregate function calls
+   * @param pos               parser position of the identifier of the call
+   * @param operands          array of operands
+   */
+  public SqlCall createCall(
+      SqlLiteral functionQualifier,
+      SqlNodeList orderList,
+      SqlParserPos pos,
+      SqlNode... operands) {
+    pos = pos.plusAll(Arrays.asList(operands));
+    return new SqlBasicCall(this, operands, pos, false, functionQualifier, orderList);
+  }
+
   /**
    * Creates a call to this operand with an array of operands.
    *
@@ -248,7 +270,7 @@ public abstract class SqlOperator {
       SqlParserPos pos,
       SqlNode... operands) {
     pos = pos.plusAll(Arrays.asList(operands));
-    return new SqlBasicCall(this, operands, pos, false, functionQualifier);
+    return createCall(functionQualifier, SqlNodeList.EMPTY, pos, operands);
   }
 
   /**
@@ -264,7 +286,7 @@ public abstract class SqlOperator {
   public final SqlCall createCall(
       SqlParserPos pos,
       SqlNode... operands) {
-    return createCall(null, pos, operands);
+    return createCall(null, SqlNodeList.EMPTY, pos, operands);
   }
 
   /**
@@ -280,6 +302,7 @@ public abstract class SqlOperator {
       SqlNodeList nodeList) {
     return createCall(
         null,
+        SqlNodeList.EMPTY,
         nodeList.getParserPosition(),
         nodeList.toArray());
   }
@@ -295,6 +318,7 @@ public abstract class SqlOperator {
       List<? extends SqlNode> operandList) {
     return createCall(
         null,
+        SqlNodeList.EMPTY,
         pos,
         operandList.toArray(new SqlNode[0]));
   }
@@ -780,6 +804,16 @@ public abstract class SqlOperator {
    * @see #isAggregator()
    */
   public boolean requiresOrder() {
+    return false;
+  }
+
+  /**
+   * Returns whether this is a aggregate function that allows ordered aggregate
+   * ({@code WITHIN GROUP}).
+   *
+   * If {@code allowsOrderedAggregate} returns false, then a validation error should be thrown.
+   */
+  public boolean allowsOrderedAggregate() {
     return false;
   }
 

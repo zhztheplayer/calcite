@@ -18,6 +18,9 @@ package org.apache.calcite.rel.rules;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Aggregate.Group;
@@ -33,6 +36,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,7 +122,21 @@ public class AggregateProjectMergeRule extends RelOptRule {
       } else {
         newFilterArg = -1;
       }
-      aggCalls.add(aggregateCall.copy(newArgs.build(), newFilterArg));
+      final RelCollation newOrdering;
+      if (!aggregateCall.getOrdering().equals(RelCollations.EMPTY)) {
+        List<RelFieldCollation> newCollationList = new ArrayList<>();
+        for (RelFieldCollation fieldCollation : aggregateCall.getOrdering().getFieldCollations()) {
+          final RexNode rex = project.getProjects().get(fieldCollation.getFieldIndex());
+          if (!(rex instanceof RexInputRef)) {
+            return null;
+          }
+          newCollationList.add(fieldCollation.copy(((RexInputRef) rex).getIndex()));
+        }
+        newOrdering = RelCollations.of(Collections.unmodifiableList(newCollationList));
+      } else {
+        newOrdering = RelCollations.EMPTY;
+      }
+      aggCalls.add(aggregateCall.copy(newArgs.build(), newFilterArg, newOrdering));
     }
 
     final Aggregate newAggregate =

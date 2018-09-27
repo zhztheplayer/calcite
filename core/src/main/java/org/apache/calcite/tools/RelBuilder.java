@@ -94,6 +94,7 @@ import java.math.BigDecimal;
 import java.util.AbstractList;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -784,6 +785,15 @@ public class RelBuilder {
   public AggCall aggregateCall(SqlAggFunction aggFunction, boolean distinct,
       boolean approximate, RexNode filter, String alias,
       Iterable<? extends RexNode> operands) {
+    return aggregateCall(aggFunction, distinct, approximate,
+        filter, alias, operands, Collections.emptyList());
+  }
+
+  /** Creates a call to an aggregate function. */
+  public AggCall aggregateCall(SqlAggFunction aggFunction, boolean distinct,
+                               boolean approximate, RexNode filter, String alias,
+                               Iterable<? extends RexNode> operands,
+                               Iterable<? extends RexNode> orderKeys) {
     if (filter != null) {
       if (filter.getType().getSqlTypeName() != SqlTypeName.BOOLEAN) {
         throw RESOURCE.filterMustBeBoolean().ex();
@@ -793,7 +803,7 @@ public class RelBuilder {
       }
     }
     return new AggCallImpl(aggFunction, distinct, approximate, filter, alias,
-        ImmutableList.copyOf(operands));
+        ImmutableList.copyOf(operands), ImmutableList.copyOf(orderKeys));
   }
 
   /** Creates a call to the COUNT aggregate function. */
@@ -1390,10 +1400,14 @@ public class RelBuilder {
         if (aggCall1.filter != null && !aggCall1.aggFunction.allowsFilter()) {
           throw new IllegalArgumentException("FILTER not allowed");
         }
+        RelCollation ordering = RelCollations.of(aggCall1.orderKeys.stream()
+            .map(orderKey ->
+                collation(orderKey, RelFieldCollation.Direction.ASCENDING,
+                    null, Collections.emptyList())).collect(Collectors.toList()));
         aggregateCall =
             AggregateCall.create(aggCall1.aggFunction, aggCall1.distinct,
                 aggCall1.approximate, args,
-                filterArg, groupSet.cardinality(), r, null, aggCall1.alias);
+                filterArg, groupSet.cardinality(), r, null, aggCall1.alias, ordering);
       } else {
         aggregateCall = ((AggCallImpl2) aggCall).aggregateCall;
       }
@@ -2088,16 +2102,18 @@ public class RelBuilder {
     private final RexNode filter;
     private final String alias;
     private final ImmutableList<RexNode> operands;
+    private final ImmutableList<RexNode> orderKeys;
 
     AggCallImpl(SqlAggFunction aggFunction, boolean distinct,
         boolean approximate, RexNode filter,
-        String alias, ImmutableList<RexNode> operands) {
+        String alias, ImmutableList<RexNode> operands, ImmutableList<RexNode> orderKeys) {
       this.aggFunction = aggFunction;
       this.distinct = distinct;
       this.approximate = approximate;
       this.filter = filter;
       this.alias = alias;
       this.operands = operands;
+      this.orderKeys = orderKeys;
     }
   }
 

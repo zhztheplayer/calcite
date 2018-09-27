@@ -2862,6 +2862,22 @@ public class SqlToRelConverterTest extends SqlToRelTestBase {
     sql(sql).with(tester).ok();
   }
 
+  @Test public void testWithinGroup1() {
+    final String sql = "SELECT deptno, collect(empno) "
+        + "WITHIN GROUP(order by deptno, hiredate desc) "
+        + "FROM emp GROUP BY deptno";
+    System.out.println(sql);
+    sql(sql).ok();
+  }
+
+  @Test public void testWithinGroup2() {
+    final String sql = "SELECT deptno, sum(empno) "
+        + "WITHIN GROUP(order by deptno, hiredate desc) "
+        + "FROM emp GROUP BY deptno";
+    System.out.println(sql);
+    sql(sql).ok();
+  }
+
   /**
    * Visitor that checks that every {@link RelNode} in a tree is valid.
    *

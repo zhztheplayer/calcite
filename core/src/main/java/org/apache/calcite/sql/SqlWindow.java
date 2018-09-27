@@ -818,9 +818,11 @@ public class SqlWindow extends SqlCall {
 
     public SqlCall createCall(
         SqlLiteral functionQualifier,
+        SqlNodeList orderList,
         SqlParserPos pos,
         SqlNode... operands) {
       assert functionQualifier == null;
+      assert SqlNodeList.isEmptyList(orderList);
       assert operands.length == 8;
       return create(
           (SqlIdentifier) operands[0],

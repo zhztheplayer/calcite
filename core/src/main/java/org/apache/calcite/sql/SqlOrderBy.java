@@ -31,7 +31,7 @@ import java.util.List;
  */
 public class SqlOrderBy extends SqlCall {
   public static final SqlSpecialOperator OPERATOR = new Operator() {
-    @Override public SqlCall createCall(SqlLiteral functionQualifier,
+    @Override public SqlCall createCall(SqlLiteral functionQualifier, SqlNodeList orderList,
         SqlParserPos pos, SqlNode... operands) {
       return new SqlOrderBy(pos, operands[0], (SqlNodeList) operands[1],
           operands[2], operands[3]);

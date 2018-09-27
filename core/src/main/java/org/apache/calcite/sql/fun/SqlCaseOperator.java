@@ -282,9 +282,11 @@ public class SqlCaseOperator extends SqlOperator {
 
   public SqlCall createCall(
       SqlLiteral functionQualifier,
+      SqlNodeList orderList,
       SqlParserPos pos,
       SqlNode... operands) {
     assert functionQualifier == null;
+    assert SqlNodeList.isEmptyList(orderList);
     assert operands.length == 4;
     return new SqlCase(pos, operands[0], (SqlNodeList) operands[1],
         (SqlNodeList) operands[2], operands[3]);

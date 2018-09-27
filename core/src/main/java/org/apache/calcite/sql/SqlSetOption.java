@@ -60,7 +60,7 @@ import java.util.List;
 public class SqlSetOption extends SqlAlter {
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("SET_OPTION", SqlKind.SET_OPTION) {
-        @Override public SqlCall createCall(SqlLiteral functionQualifier,
+        @Override public SqlCall createCall(SqlLiteral functionQualifier, SqlNodeList orderList,
             SqlParserPos pos, SqlNode... operands) {
           final SqlNode scopeNode = operands[0];
           return new SqlSetOption(pos,

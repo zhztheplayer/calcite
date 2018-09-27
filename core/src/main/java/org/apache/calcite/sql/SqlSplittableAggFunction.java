@@ -148,7 +148,7 @@ public interface SqlSplittableAggFunction {
       int ordinal = extra.register(node);
       return AggregateCall.create(SqlStdOperatorTable.SUM0, false, false,
           ImmutableList.of(ordinal), -1, aggregateCall.type,
-          aggregateCall.name);
+          aggregateCall.name, aggregateCall.ordering);
     }
 
     /**
@@ -261,7 +261,7 @@ public interface SqlSplittableAggFunction {
       int ordinal = extra.register(node);
       return AggregateCall.create(getMergeAggFunctionOfTopSplit(), false, false,
           ImmutableList.of(ordinal), -1, aggregateCall.type,
-          aggregateCall.name);
+          aggregateCall.name, aggregateCall.ordering);
     }
 
     protected abstract SqlAggFunction getMergeAggFunctionOfTopSplit();

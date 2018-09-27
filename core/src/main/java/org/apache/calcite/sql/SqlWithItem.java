@@ -96,9 +96,10 @@ public class SqlWithItem extends SqlCall {
       withItem.query.unparse(writer, 10, 10);
     }
 
-    @Override public SqlCall createCall(SqlLiteral functionQualifier,
+    @Override public SqlCall createCall(SqlLiteral functionQualifier, SqlNodeList orderList,
         SqlParserPos pos, SqlNode... operands) {
       assert functionQualifier == null;
+      assert SqlNodeList.isEmptyList(orderList);
       assert operands.length == 3;
       return new SqlWithItem(pos, (SqlIdentifier) operands[0],
           (SqlNodeList) operands[1], operands[2]);

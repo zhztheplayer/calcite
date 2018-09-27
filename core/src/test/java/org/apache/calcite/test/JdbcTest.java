@@ -6657,6 +6657,81 @@ public class JdbcTest {
     connection.close();
   }
 
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-2224">[CALCITE-2224]
+   * WITHIN GROUP clause for aggregate functions</a>. */
+  @Test public void testWithinGroupClause1() {
+    CalciteAssert
+        .that()
+        .query("select X, collect(Y) within group (order by Y desc) as \"SET\" "
+            + "from (values (1, 'a'), (1, 'b'), (3, 'c'), (3, 'd')) AS t(X, Y) "
+            + "group by X limit 10")
+        .returns("X=1; SET=[b, a]\n"
+            + "X=3; SET=[d, c]\n");
+  }
+
+  @Test public void testWithinGroupClause2() {
+    CalciteAssert
+        .that()
+        .query("select X, collect(Y) within group (order by Y desc) as SET_1, "
+            + "collect(Y) within group (order by Y asc) as SET_2 "
+            + "from (values (1, 'a'), (1, 'b'), (3, 'c'), (3, 'd')) AS t(X, Y) "
+            + "group by X limit 10")
+        .returns("X=1; SET_1=[b, a]; SET_2=[a, b]\n"
+            + "X=3; SET_1=[d, c]; SET_2=[c, d]\n");
+  }
+
+  @Test public void testWithinGroupClause3() {
+    CalciteAssert
+        .that()
+        .query("select collect(Y) within group (order by Y desc) as SET_1, "
+            + "collect(Y) within group (order by Y asc) as SET_2 "
+            + "from (values (1, 'a'), (1, 'b'), (3, 'c'), (3, 'd')) AS t(X, Y) "
+            + "limit 10")
+        .returns("SET_1=[d, c, b, a]; SET_2=[a, b, c, d]\n");
+  }
+
+  @Test public void testWithinGroupClause4() {
+    CalciteAssert
+        .that()
+        .query("select collect(Y) within group (order by Y desc) as SET_1, "
+            + "collect(Y) within group (order by Y asc) as SET_2 "
+            + "from (values (1, 'a'), (1, 'b'), (3, 'c'), (3, 'd')) AS t(X, Y) "
+            + "group by X limit 10")
+        .returns("SET_1=[b, a]; SET_2=[a, b]\n"
+            + "SET_1=[d, c]; SET_2=[c, d]\n");
+  }
+
+  @Test public void testWithinGroupClause5() {
+    CalciteAssert
+        .that()
+        .query("select collect(array[X, Y]) within group (order by Y desc) as \"SET\" "
+            + "from (values ('b', 'a'), ('a', 'b'), ('a', 'c'), ('a', 'd')) AS t(X, Y) "
+            + "limit 10")
+        .returns("SET=[[a, d], [a, c], [a, b], [b, a]]\n");
+  }
+
+  @Test public void testWithinGroupClause6() {
+    CalciteAssert.that()
+        .with(CalciteAssert.Config.REGULAR)
+        .query("select collect(\"commission\")"
+            + "within group (order by \"commission\") from \"hr\".\"emps\"")
+        .explainContains("EnumerableAggregate(group=[{}], "
+            + "EXPR$0=[COLLECT($4) WITHIN GROUP ([4])])")
+        .returns("EXPR$0=[250, 500, 1000]\n");
+  }
+
+  @Test public void testWithinGroupClause7() {
+    CalciteAssert.that()
+        .with(CalciteAssert.Config.REGULAR)
+        .query("select avg(\"empid\")"
+            + "within group (order by \"empid\") from \"hr\".\"emps\"")
+        .explainContains("EnumerableAggregate(group=[{}], "
+            + "agg#0=[$SUM0($0)], agg#1=[COUNT()])")
+        .returns("EXPR$0=140\n");
+  }
+
   private static String sums(int n, boolean c) {
     final StringBuilder b = new StringBuilder();
     for (int i = 0; i < n; i++) {

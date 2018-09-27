@@ -10630,6 +10630,21 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
     sql("select * from emp_r join dept_r on (^emp_r.slackingmin^ = dept_r.slackingmin)")
             .fails(onError);
   }
+
+  @Test public void testWithinGroup() {
+    check("select deptno, collect(empno) within group(order by 1) from emp group by deptno");
+    check("select deptno, collect(empno) within group(order by deptno) "
+        + "from emp group by deptno");
+    check("select deptno, collect(empno) within group(order by deptno, hiredate desc) "
+        + "from emp group by deptno");
+    check("select deptno, collect(empno) "
+        + "within group(order by cast(deptno as varchar), hiredate desc) "
+        + "from emp group by deptno");
+    check("select collect(empno) within group(order by 1) from emp group by deptno");
+    check("select collect(empno) within group(order by 1) from emp");
+    checkFails("select ^power(deptno, 1) within group(order by 1)^ from emp",
+        "(?s).*WITHIN GROUP not allowed with POWER function.*");
+  }
 }
 
 // End SqlValidatorTest.java

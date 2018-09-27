@@ -5296,4 +5296,28 @@ LogicalProject(ANYEMPNO=[$1])
 ]]>
         </Resource>
     </TestCase>
+    <TestCase name="testWithinGroup1">
+        <Resource name="sql">
+            <![CDATA[SELECT deptno, collect(empno) WITHIN GROUP(order by deptno, hiredate desc) FROM emp GROUP BY deptno]]>
+        </Resource>
+        <Resource name="plan">
+            <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COLLECT($1) WITHIN GROUP ([1, 2 DESC])])
+  LogicalProject(DEPTNO=[$7], EMPNO=[$0], HIREDATE=[$4])
+    LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+        </Resource>
+    </TestCase>
+    <TestCase name="testWithinGroup2">
+        <Resource name="sql">
+            <![CDATA[SELECT deptno, sum(empno) WITHIN GROUP(order by deptno, hiredate desc) FROM emp GROUP BY deptno]]>
+        </Resource>
+        <Resource name="plan">
+            <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+  LogicalProject(DEPTNO=[$7], EMPNO=[$0])
+    LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+        </Resource>
+    </TestCase>
 </Root>

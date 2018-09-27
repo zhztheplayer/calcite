@@ -28,7 +28,7 @@ import java.util.List;
 public class SqlExplain extends SqlCall {
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("EXPLAIN", SqlKind.EXPLAIN) {
-        @Override public SqlCall createCall(SqlLiteral functionQualifier,
+        @Override public SqlCall createCall(SqlLiteral functionQualifier, SqlNodeList orderList,
             SqlParserPos pos, SqlNode... operands) {
           return new SqlExplain(pos, operands[0], (SqlLiteral) operands[1],
               (SqlLiteral) operands[2], (SqlLiteral) operands[3], 0);
