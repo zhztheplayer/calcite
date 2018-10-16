@@ -183,6 +183,11 @@ public class CalciteConnectionConfigImpl extends ConnectionConfigImpl
     return CalciteConnectionProperty.CONFORMANCE.wrap(properties)
         .getEnum(SqlConformanceEnum.class);
   }
+
+  @Override public ErrorMode errorMode() {
+    return CalciteConnectionProperty.ERROR_MODE.wrap(properties)
+        .getEnum(ErrorMode.class);
+  }
 }
 
 // End CalciteConnectionConfigImpl.java

@@ -75,7 +75,7 @@ public class JaninoRexCompiler implements Interpreter.ScalarCompiler {
 
     final BlockBuilder builder = new BlockBuilder();
     final ParameterExpression context_ =
-        Expressions.parameter(Context.class, "context");
+        Expressions.parameter(Modifier.FINAL, Context.class, "context");
     final ParameterExpression outputValues_ =
         Expressions.parameter(Object[].class, "outputValues");
     final JavaTypeFactoryImpl javaTypeFactory =

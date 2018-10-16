@@ -72,7 +72,7 @@ public class RexExecutorImpl implements RexExecutor {
         new JavaTypeFactoryImpl(rexBuilder.getTypeFactory().getTypeSystem());
     final BlockBuilder blockBuilder = new BlockBuilder();
     final ParameterExpression root0_ =
-        Expressions.parameter(Object.class, "root0");
+        Expressions.parameter(Modifier.FINAL, Object.class, "root0");
     final ParameterExpression root_ = DataContext.ROOT;
     blockBuilder.add(
         Expressions.declare(

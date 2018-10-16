@@ -4803,7 +4803,38 @@ SqlNode BuiltinFunctionCall() :
         node = ExtendedBuiltinFunctionCall() { return node; }
     |
         node = MatchRecognizeFunctionCall() { return node; }
+    |
+        node = CatchErrorFunctionCall() { return node; }
     )
+}
+
+SqlCall CatchErrorFunctionCall() :
+{
+    List<SqlNode> args;
+    SqlNode e;
+    final Span s;
+    SqlFunction function;
+}
+{
+    <CATCH_ERROR> { s = span(); }
+    <LPAREN>
+    e = Expression(ExprContext.ACCEPT_SUB_QUERY) { args = startList(e); }
+    (
+        (
+            <EMPTY> { function = SqlStdOperatorTable.CATCH_ERROR_EMPTY_ON_ERROR; }
+        |
+            <ERROR> { function = SqlStdOperatorTable.CATCH_ERROR_ERROR_ON_ERROR; }
+        )
+        <ON>
+        <ERROR>
+    |
+        // when CATCH_ERROR is called but no behaviors specified, behavior will be defaulted
+        // to "EMPTY ON ERROR"
+        { function = SqlStdOperatorTable.CATCH_ERROR_EMPTY_ON_ERROR; }
+    )
+    <RPAREN> {
+        return function.createCall(s.end(this), args);
+    }
 }
 
 /**
@@ -5514,6 +5545,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < CAST: "CAST" >
 |   < CATALOG: "CATALOG" >
 |   < CATALOG_NAME: "CATALOG_NAME" >
+|   < CATCH_ERROR: "CATCH_ERROR" >
 |   < CEIL: "CEIL" >
 |   < CEILING: "CEILING" >
 |   < CENTURY: "CENTURY" >
@@ -5636,6 +5668,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < END_PARTITION: "END_PARTITION" >
 |   < EPOCH: "EPOCH" >
 |   < EQUALS: "EQUALS" >
+|   < ERROR: "ERROR" >
 |   < ESCAPE: "ESCAPE" >
 |   < EVERY: "EVERY" >
 |   < EXCEPT: "EXCEPT" >
@@ -6207,6 +6240,7 @@ String CommonNonReservedKeyWord() :
     |   <DYNAMIC_FUNCTION>
     |   <DYNAMIC_FUNCTION_CODE>
     |   <EPOCH>
+    |   <ERROR>
     |   <EXCEPTION>
     |   <EXCLUDE>
     |   <EXCLUDING>

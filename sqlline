@@ -43,7 +43,7 @@ for module in core cassandra druid elasticsearch2 elasticsearch5 file mongodb se
 done
 CP="${CP}$(cat target/fullclasspath.txt)"
 
-VM_OPTS=
+VM_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
 if [ "$cygwin" ]; then
   CP=$(cygpath -wp "$CP")
 

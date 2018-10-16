@@ -2638,6 +2638,17 @@ public class RelToSqlConverterTest {
         callsUnparseCallOnSqlSelect[0], is(true));
   }
 
+  @Test public void testCatchError() {
+    String query = "select catch_error(\"product_id\" / 0) as p1, "
+        + "catch_error(\"product_id\" / 0 empty on error) as p2, "
+        + "catch_error(\"product_id\" / 0 error on error) as p3 from \"product\"";
+    final String expected = "SELECT CATCH_ERROR(\"product_id\" / 0 EMPTY ON ERROR) AS \"P1\", "
+        + "CATCH_ERROR(\"product_id\" / 0 EMPTY ON ERROR) AS \"P2\", "
+        + "CATCH_ERROR(\"product_id\" / 0 ERROR ON ERROR) AS \"P3\"\n"
+        + "FROM \"foodmart\".\"product\"";
+    sql(query).ok(expected);
+  }
+
   /** Fluid interface to run tests. */
   static class Sql {
     private final SchemaPlus schema;

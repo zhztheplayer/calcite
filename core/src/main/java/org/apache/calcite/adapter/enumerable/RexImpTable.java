@@ -38,6 +38,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.runtime.ExceptionHandlerEnum;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.schema.ImplementableAggFunction;
 import org.apache.calcite.schema.ImplementableFunction;
@@ -45,6 +46,7 @@ import org.apache.calcite.schema.impl.AggregateFunctionImpl;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlCatchErrorFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -99,6 +101,8 @@ import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ATAN2;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CARDINALITY;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CASE;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CAST;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CATCH_ERROR_EMPTY_ON_ERROR;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CATCH_ERROR_ERROR_ON_ERROR;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CEIL;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CHARACTER_LENGTH;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CHAR_LENGTH;
@@ -409,6 +413,13 @@ public class RexImpTable {
     map.put(ITEM, new ItemImplementor());
 
     map.put(DEFAULT, (translator, call, nullAs) -> Expressions.constant(null));
+
+    // Catch error functions
+    CatchErrorImplementor catchErrorImplementor = new CatchErrorImplementor();
+    defineImplementor(CATCH_ERROR_EMPTY_ON_ERROR, NullPolicy.STRICT, catchErrorImplementor,
+        false);
+    defineImplementor(CATCH_ERROR_ERROR_ON_ERROR, NullPolicy.STRICT, catchErrorImplementor,
+        false);
 
     // Sequences
     defineMethod(CURRENT_VALUE, BuiltInMethod.SEQUENCE_CURRENT_VALUE.method, NullPolicy.STRICT);
@@ -1062,14 +1073,6 @@ public class RexImpTable {
     }
   }
 
-  static Expression getDefaultValue(Type type) {
-    if (Primitive.is(type)) {
-      Primitive p = Primitive.of(type);
-      return Expressions.constant(p.defaultValue, type);
-    }
-    return Expressions.constant(null, type);
-  }
-
   /** Multiplies an expression by a constant and divides by another constant,
    * optimizing appropriately.
    *
@@ -1223,7 +1226,7 @@ public class RexImpTable {
       reset.currentBlock().add(
           Expressions.statement(
               Expressions.assign(acc.get(1),
-                  getDefaultValue(acc.get(1).getType()))));
+                  Types.getDefaultValue(acc.get(1).getType()))));
     }
 
     public void implementAdd(AggContext info, AggAddContext add) {
@@ -1500,7 +1503,7 @@ public class RexImpTable {
           winResult.rowTranslator(
               winResult.computeIndex(Expressions.constant(0), seekType))
               .translate(winResult.rexArguments().get(0), info.returnType()),
-          getDefaultValue(info.returnType()));
+          Types.getDefaultValue(info.returnType()));
     }
   }
 
@@ -1564,7 +1567,7 @@ public class RexImpTable {
       result.exitBlock();
       BlockStatement thenBranch = thenBlock.toBlock();
 
-      Expression defaultValue = getDefaultValue(res.type);
+      Expression defaultValue = Types.getDefaultValue(res.type);
 
       result.currentBlock().add(Expressions.declare(0, res, null));
       result.currentBlock().add(
@@ -1635,7 +1638,7 @@ public class RexImpTable {
 
       Expression defaultValue = rexArgs.size() == 3
           ? currentRowTranslator.translate(rexArgs.get(2), res.type)
-          : getDefaultValue(res.type);
+          : Types.getDefaultValue(res.type);
 
       result.currentBlock().add(Expressions.declare(0, res, null));
       result.currentBlock().add(
@@ -2523,6 +2526,30 @@ public class RexImpTable {
       default:
         return e;
       }
+    }
+  }
+
+  /** Implementor for {@code CATCH_ERROR} function. */
+  private static class CatchErrorImplementor implements NotNullImplementor {
+    @Override public Expression implement(RexToLixTranslator translator,
+                                          RexCall call, List<Expression> translatedOperands) {
+      // CATCH_ERROR supports one argument currently.
+      assert translatedOperands.size() == 1;
+      Expression operand = translatedOperands.get(0);
+      SqlCatchErrorFunction func = (SqlCatchErrorFunction) call.getOperator();
+      SqlCatchErrorFunction.ErrorBehavior errorBehavior = func.getErrorBehavior();
+      Expression excHandler;
+      switch (errorBehavior) {
+      case ERROR:
+        excHandler = Expressions.constant(ExceptionHandlerEnum.THROW);
+        break;
+      case EMPTY:
+        excHandler = Expressions.constant(ExceptionHandlerEnum.DISCARD);
+        break;
+      default:
+        throw new IllegalStateException("illegal error behavior: " + errorBehavior);
+      }
+      return translator.translateCatchError(operand, excHandler);
     }
   }
 }

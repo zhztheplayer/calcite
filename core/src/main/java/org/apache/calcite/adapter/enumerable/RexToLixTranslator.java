@@ -20,14 +20,19 @@ import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.avatica.util.DateTimeUtils;
+import org.apache.calcite.linq4j.function.Function0;
 import org.apache.calcite.linq4j.function.Function1;
 import org.apache.calcite.linq4j.tree.BlockBuilder;
+import org.apache.calcite.linq4j.tree.Blocks;
 import org.apache.calcite.linq4j.tree.ConstantExpression;
+import org.apache.calcite.linq4j.tree.ConstantUntypedNull;
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.linq4j.tree.ExpressionType;
 import org.apache.calcite.linq4j.tree.Expressions;
+import org.apache.calcite.linq4j.tree.MethodCallExpression;
 import org.apache.calcite.linq4j.tree.ParameterExpression;
 import org.apache.calcite.linq4j.tree.Primitive;
+import org.apache.calcite.linq4j.tree.Types;
 import org.apache.calcite.linq4j.tree.UnaryExpression;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
@@ -522,10 +527,10 @@ public class RexToLixTranslator {
         default:
           if (truncate || pad) {
             convert =
-                Expressions.call(
+                Expressions.call(SqlFunctions.class,
                     pad
-                        ? BuiltInMethod.TRUNCATE_OR_PAD.method
-                        : BuiltInMethod.TRUNCATE.method,
+                        ? BuiltInMethod.TRUNCATE_OR_PAD.method.getName()
+                        : BuiltInMethod.TRUNCATE.method.getName(),
                     convert,
                     Expressions.constant(targetPrecision));
           }
@@ -1267,6 +1272,30 @@ public class RexToLixTranslator {
       }
     }
     return operand;
+  }
+
+  public Expression translateCatchError(Expression expression,
+                                        Expression exceptionHandler) {
+    if (ConstantUntypedNull.INSTANCE.equals(expression)) {
+      // there is no need to handle a "null"
+      return expression;
+    }
+    Type type = expression.getType();
+
+    MethodCallExpression handleCall = Expressions.call(
+        BuiltInMethod.EXCEPTION_HANDLERS_HANDLE_EXCEPTION.method,
+        Expressions.lambda(
+            Function0.class,
+            Blocks.toFunctionBlock(Expressions.return_(null, expression))
+        ),
+        Types.getDefaultValue(type),
+        exceptionHandler);
+    if (Primitive.is(type)) {
+      return Expressions.convert_(
+          Expressions.convert_(
+              handleCall, Primitive.box(type)), type);
+    }
+    return Expressions.convert_(handleCall, type);
   }
 
   /** Translates a field of an input to an expression. */

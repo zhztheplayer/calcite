@@ -16,6 +16,7 @@
  */
 package org.apache.calcite.sql2rel;
 
+import org.apache.calcite.config.ErrorMode;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
@@ -93,6 +94,11 @@ public interface SqlRexContext {
    * Converts a literal.
    */
   RexNode convertLiteral(SqlLiteral literal);
+
+  /**
+   * Describes the {@link org.apache.calcite.config.ErrorMode}
+   */
+  ErrorMode getErrorMode();
 }
 
 // End SqlRexContext.java

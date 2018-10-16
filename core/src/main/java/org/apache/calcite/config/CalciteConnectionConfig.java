@@ -70,6 +70,8 @@ public interface CalciteConnectionConfig extends ConnectionConfig {
   <T> T typeSystem(Class<T> typeSystemClass, T defaultTypeSystem);
   /** @see CalciteConnectionProperty#CONFORMANCE */
   SqlConformance conformance();
+  /** @see CalciteConnectionProperty#ERROR_MODE */
+  ErrorMode errorMode();
 }
 
 // End CalciteConnectionConfig.java

@@ -72,6 +72,8 @@ import org.apache.calcite.runtime.ArrayBindable;
 import org.apache.calcite.runtime.BinarySearch;
 import org.apache.calcite.runtime.Bindable;
 import org.apache.calcite.runtime.Enumerables;
+import org.apache.calcite.runtime.ExceptionHandler;
+import org.apache.calcite.runtime.ExceptionHandlers;
 import org.apache.calcite.runtime.FlatLists;
 import org.apache.calcite.runtime.RandomFunction;
 import org.apache.calcite.runtime.ResultSetEnumerable;
@@ -432,7 +434,9 @@ public enum BuiltInMethod {
   CONTEXT_VALUES(Context.class, "values", true),
   CONTEXT_ROOT(Context.class, "root", true),
   DATA_CONTEXT_GET_QUERY_PROVIDER(DataContext.class, "getQueryProvider"),
-  METADATA_REL(Metadata.class, "rel");
+  METADATA_REL(Metadata.class, "rel"),
+  EXCEPTION_HANDLERS_HANDLE_EXCEPTION(ExceptionHandlers.class, "handleException", Function0.class,
+      Object.class, ExceptionHandler.class);
 
   public final Method method;
   public final Constructor constructor;

@@ -307,7 +307,9 @@ public class CalcitePrepareImpl implements CalcitePrepare {
     planner.addRelTraitDef(ConventionTraitDef.INSTANCE);
 
     final SqlToRelConverter.ConfigBuilder configBuilder =
-        SqlToRelConverter.configBuilder().withTrimUnusedFields(true);
+        SqlToRelConverter.configBuilder()
+            .withTrimUnusedFields(true)
+            .withErrorMode(context.config().errorMode());
     if (analyze) {
       configBuilder.withConvertTableAccess(false);
     }

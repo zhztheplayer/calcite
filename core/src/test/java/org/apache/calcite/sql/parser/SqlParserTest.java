@@ -138,6 +138,7 @@ public class SqlParserTest {
       "CASE",                          "92", "99", "2003", "2011", "2014", "c",
       "CAST",                          "92", "99", "2003", "2011", "2014", "c",
       "CATALOG",                       "92", "99",
+      "CATCH_ERROR",                                                       "c",
       "CEIL",                                              "2011", "2014", "c",
       "CEILING",                                           "2011", "2014", "c",
       "CHAR",                          "92", "99", "2003", "2011", "2014", "c",
@@ -8150,6 +8151,16 @@ public class SqlParserTest {
         + "`UP` AS (`UP`.`PRICE` > PREV(`UP`.`PRICE`, 1))"
         + ") AS `MR`";
     sql(sql).ok(expected);
+  }
+
+  @Test public void testCatchError() {
+    checkExp("catch_error(1 / 0)", "CATCH_ERROR((1 / 0) EMPTY ON ERROR)");
+    checkExp("catch_error(1 / 0 empty on error)",
+        "CATCH_ERROR((1 / 0) EMPTY ON ERROR)");
+    checkExp("catch_error(1 / 0 error on error)",
+        "CATCH_ERROR((1 / 0) ERROR ON ERROR)");
+    checkFails("catch_error(1 / 0 ^on^ error)",
+        "(?s).*Encountered \"on\" at line 1, column 19.*");
   }
 
   //~ Inner Interfaces -------------------------------------------------------

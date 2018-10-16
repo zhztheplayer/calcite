@@ -20,6 +20,7 @@ import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.config.ErrorMode;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.CorrelationId;
@@ -1428,6 +1429,18 @@ public class RexBuilder {
       return makeLiteral(value, guessType(value), allowCast);
     default:
       throw Util.unexpected(type.getSqlTypeName());
+    }
+  }
+
+  public RexNode makeCatchError(ErrorMode errorMode, RexNode op) {
+    switch (errorMode) {
+    case RETURN_EMPTY_VALUE:
+      return makeCall(SqlStdOperatorTable.CATCH_ERROR_EMPTY_ON_ERROR, op);
+    case THROW_ERROR:
+      // no wrapping
+      return op;
+    default:
+      throw new IllegalStateException("unexpected error mode: " + errorMode);
     }
   }
 

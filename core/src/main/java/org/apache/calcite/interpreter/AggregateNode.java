@@ -46,6 +46,7 @@ import com.google.common.collect.ImmutableList;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -238,7 +239,7 @@ public class AggregateNode extends AbstractSingleNode<Aggregate> {
       agg.implementor.implementAdd(agg.context, addContext);
 
       final ParameterExpression context_ =
-          Expressions.parameter(Context.class, "context");
+          Expressions.parameter(Modifier.FINAL, Context.class, "context");
       final ParameterExpression outputValues_ =
           Expressions.parameter(Object[].class, "outputValues");
       Scalar addScalar =

@@ -19,6 +19,7 @@ package org.apache.calcite.rex;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.avatica.util.ByteString;
+import org.apache.calcite.config.ErrorMode;
 import org.apache.calcite.linq4j.QueryProvider;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
@@ -351,6 +352,8 @@ public class RexExecutorTest {
     public Object get(String name) {
       if (name.equals("inputRecord")) {
         return values;
+      } else if (name.equals("errorMode")) {
+        return ErrorMode.THROW_ERROR;
       } else {
         Assert.fail("Wrong DataContext access");
         return null;

@@ -98,7 +98,7 @@ public abstract class StrictAggImplementor implements AggImplementor {
       block.add(
           Expressions.statement(
               Expressions.assign(flag,
-                  RexImpTable.getDefaultValue(flag.getType()))));
+                  Types.getDefaultValue(flag.getType()))));
     }
     implementNotNullReset(info, reset);
   }
@@ -112,7 +112,7 @@ public abstract class StrictAggImplementor implements AggImplementor {
       block.add(
           Expressions.statement(
               Expressions.assign(exp,
-                  RexImpTable.getDefaultValue(exp.getType()))));
+                  Types.getDefaultValue(exp.getType()))));
     }
   }
 
@@ -190,7 +190,7 @@ public abstract class StrictAggImplementor implements AggImplementor {
 
     if (thenBranch.statements.size() == 1) {
       return Expressions.condition(seenNotNullRows,
-          nonNull, RexImpTable.getDefaultValue(res.getType()));
+          nonNull, Types.getDefaultValue(res.getType()));
     }
     result.currentBlock().add(Expressions.declare(0, res, null));
     result.currentBlock().add(
@@ -198,7 +198,7 @@ public abstract class StrictAggImplementor implements AggImplementor {
             thenBranch,
             Expressions.statement(
                 Expressions.assign(res,
-                    RexImpTable.getDefaultValue(res.getType())))));
+                    Types.getDefaultValue(res.getType())))));
     return res;
   }
 

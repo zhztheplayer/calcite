@@ -1985,6 +1985,17 @@ public class SqlStdOperatorTable extends ReflectiveSqlOperatorTable {
       };
 
   /**
+   * The CATCH_ERROR operators.
+   */
+  public static final SqlFunction CATCH_ERROR_EMPTY_ON_ERROR =
+      new SqlCatchErrorFunction("CATCH_ERROR_EMPTY_ON_ERROR",
+          SqlCatchErrorFunction.ErrorBehavior.EMPTY);
+
+  public static final SqlFunction CATCH_ERROR_ERROR_ON_ERROR =
+      new SqlCatchErrorFunction("CATCH_ERROR_ERROR_ON_ERROR",
+          SqlCatchErrorFunction.ErrorBehavior.ERROR);
+
+  /**
    * The sequence next value function: <code>NEXT VALUE FOR sequence</code>
    */
   public static final SqlOperator NEXT_VALUE =

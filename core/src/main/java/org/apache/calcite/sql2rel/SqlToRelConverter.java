@@ -17,6 +17,7 @@
 package org.apache.calcite.sql2rel;
 
 import org.apache.calcite.avatica.util.Spaces;
+import org.apache.calcite.config.ErrorMode;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -4667,6 +4668,10 @@ public class SqlToRelConverter {
       return exprConverter.convertLiteral(this, literal);
     }
 
+    @Override public ErrorMode getErrorMode() {
+      return config.getErrorMode();
+    }
+
     public RexNode convertInterval(SqlIntervalQualifier intervalQualifier) {
       return exprConverter.convertInterval(this, intervalQualifier);
     }
@@ -5475,6 +5480,12 @@ public class SqlToRelConverter {
      * cases. */
     int getInSubQueryThreshold();
 
+    /**
+     * Returns the {@code errorMode} option. Indicates how Calcite behaves when error occurred at
+     * runtime execution.
+     */
+    ErrorMode getErrorMode();
+
     /** Returns the factory to create {@link RelBuilder}, never null. Default is
      * {@link RelFactories#LOGICAL_BUILDER}. */
     RelBuilderFactory getRelBuilderFactory();
@@ -5489,6 +5500,7 @@ public class SqlToRelConverter {
     private boolean explain;
     private boolean expand = true;
     private int inSubQueryThreshold = DEFAULT_IN_SUB_QUERY_THRESHOLD;
+    private ErrorMode errorMode = ErrorMode.THROW_ERROR;
     private RelBuilderFactory relBuilderFactory = RelFactories.LOGICAL_BUILDER;
 
     private ConfigBuilder() {}
@@ -5502,6 +5514,7 @@ public class SqlToRelConverter {
       this.explain = config.isExplain();
       this.expand = config.isExpand();
       this.inSubQueryThreshold = config.getInSubQueryThreshold();
+      this.errorMode = config.getErrorMode();
       this.relBuilderFactory = config.getRelBuilderFactory();
       return this;
     }
@@ -5546,6 +5559,11 @@ public class SqlToRelConverter {
       return this;
     }
 
+    public ConfigBuilder withErrorMode(ErrorMode errorMode) {
+      this.errorMode = errorMode;
+      return this;
+    }
+
     public ConfigBuilder withRelBuilderFactory(
         RelBuilderFactory relBuilderFactory) {
       this.relBuilderFactory = relBuilderFactory;
@@ -5556,7 +5574,7 @@ public class SqlToRelConverter {
     public Config build() {
       return new ConfigImpl(convertTableAccess, decorrelationEnabled,
           trimUnusedFields, createValuesRel, explain, expand,
-          inSubQueryThreshold, relBuilderFactory);
+          inSubQueryThreshold, errorMode, relBuilderFactory);
     }
   }
 
@@ -5570,12 +5588,13 @@ public class SqlToRelConverter {
     private final boolean explain;
     private final boolean expand;
     private final int inSubQueryThreshold;
+    private final ErrorMode errorMode;
     private final RelBuilderFactory relBuilderFactory;
 
     private ConfigImpl(boolean convertTableAccess, boolean decorrelationEnabled,
-        boolean trimUnusedFields, boolean createValuesRel, boolean explain,
-        boolean expand, int inSubQueryThreshold,
-        RelBuilderFactory relBuilderFactory) {
+                       boolean trimUnusedFields, boolean createValuesRel, boolean explain,
+                       boolean expand, int inSubQueryThreshold,
+                       ErrorMode errorMode, RelBuilderFactory relBuilderFactory) {
       this.convertTableAccess = convertTableAccess;
       this.decorrelationEnabled = decorrelationEnabled;
       this.trimUnusedFields = trimUnusedFields;
@@ -5583,6 +5602,7 @@ public class SqlToRelConverter {
       this.explain = explain;
       this.expand = expand;
       this.inSubQueryThreshold = inSubQueryThreshold;
+      this.errorMode = errorMode;
       this.relBuilderFactory = relBuilderFactory;
     }
 
@@ -5612,6 +5632,10 @@ public class SqlToRelConverter {
 
     public int getInSubQueryThreshold() {
       return inSubQueryThreshold;
+    }
+
+    public ErrorMode getErrorMode() {
+      return errorMode;
     }
 
     public RelBuilderFactory getRelBuilderFactory() {

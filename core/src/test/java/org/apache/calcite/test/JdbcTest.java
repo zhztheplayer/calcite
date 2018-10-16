@@ -32,6 +32,7 @@ import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.config.CalciteConnectionProperty;
+import org.apache.calcite.config.ErrorMode;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.jdbc.CalciteConnection;
@@ -93,6 +94,7 @@ import org.apache.calcite.util.Smalls;
 import org.apache.calcite.util.TryThreadLocal;
 import org.apache.calcite.util.Util;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
@@ -6657,6 +6659,184 @@ public class JdbcTest {
     assertThat(resultSet.next(), is(false));
 
     connection.close();
+  }
+
+  @Test public void testCatchError1() {
+    try {
+      CalciteAssert.that()
+          .query("select catch_error(x / y error on error) from "
+              + "(values (1, 2), (2, 1), (3, 0), (2, 2), (1, 0), (2, 1), (3, 8)) as t(X, Y) "
+              + "limit 10")
+          .returns(resultSet -> {
+            for (;;) {
+              try {
+                if (!resultSet.next()) {
+                  break;
+                }
+              } catch (SQLException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          });
+      fail("expected error");
+    } catch (Exception e) {
+      assertThat(
+          Throwables.getStackTraceAsString(e),
+          containsString("/ by zero"));
+    }
+  }
+
+  @Test public void testCatchError2() {
+    CalciteAssert.that()
+        .query("select catch_error(x / y) from "
+            + "(values (1, 2), (2, 1), (3, 0), (2, 2), (1, 0), (2, 1), (3, 8)) as t(X, Y) "
+            + "limit 10")
+        .explainContains("EnumerableCalc(expr#0..1=[{inputs}], expr#2=[/($t0, $t1)], "
+            + "expr#3=[CATCH_ERROR_EMPTY_ON_ERROR($t2)], EXPR$0=[$t3])")
+        .returns("EXPR$0=0\n"
+            + "EXPR$0=2\n"
+            + "EXPR$0=0\n"
+            + "EXPR$0=1\n"
+            + "EXPR$0=0\n"
+            + "EXPR$0=2\n"
+            + "EXPR$0=0\n");
+  }
+
+  @Test public void testCatchError3() {
+    CalciteAssert.that()
+        .query("select catch_error(x / y empty on error) from "
+            + "(values (1, 2), (2, 1), (3, 0), (2, 2), (1, 0), (2, 1), (3, 8)) as t(X, Y) "
+            + "limit 10")
+        .returns("EXPR$0=0\n"
+            + "EXPR$0=2\n"
+            + "EXPR$0=0\n"
+            + "EXPR$0=1\n"
+            + "EXPR$0=0\n"
+            + "EXPR$0=2\n"
+            + "EXPR$0=0\n");
+  }
+
+  @Test public void testExceptionHandler1() {
+    try {
+      // ensures that ErrorMode.THROW_ERROR is the default mode.
+      CalciteAssert.that()
+          .query("select x / y from "
+              + "(values (1, 2), (2, 1), (3, 0), (2, 2), (1, 0), (2, 1), (3, 8)) as t(X, Y) "
+              + "limit 10")
+          .explainContains("EnumerableCalc(expr#0..1=[{inputs}], "
+              + "expr#2=[/($t0, $t1)], EXPR$0=[$t2])")
+          .returns(resultSet -> {
+            for (;;) {
+              try {
+                if (!resultSet.next()) {
+                  break;
+                }
+              } catch (SQLException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          });
+      fail("expected error");
+    } catch (Exception e) {
+      assertThat(
+          Throwables.getStackTraceAsString(e),
+          containsString("/ by zero"));
+    }
+  }
+
+  @Test public void testExceptionHandler2() {
+    try {
+      CalciteAssert.that()
+          .with(CalciteConnectionProperty.ERROR_MODE, ErrorMode.THROW_ERROR)
+          .query("select x / y from "
+              + "(values (1, 2), (2, 1), (3, 0), (2, 2), (1, 0), (2, 1), (3, 8)) as t(X, Y) "
+              + "limit 10")
+          .explainContains("EnumerableCalc(expr#0..1=[{inputs}], "
+              + "expr#2=[/($t0, $t1)], EXPR$0=[$t2])")
+          .returns(resultSet -> {
+            for (;;) {
+              try {
+                if (!resultSet.next()) {
+                  break;
+                }
+              } catch (SQLException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          });
+      fail("expected error");
+    } catch (Exception e) {
+      assertThat(
+          Throwables.getStackTraceAsString(e),
+          containsString("/ by zero"));
+    }
+  }
+
+  @Test public void testExceptionHandler3() {
+    CalciteAssert.that()
+        .with(CalciteConnectionProperty.ERROR_MODE, ErrorMode.RETURN_EMPTY_VALUE)
+        .query("select x / y from "
+            + "(values (1, 2), (2, 1), (3, 0), (2, 2), (1, 0), (2, 1), (3, 8)) as t(X, Y) "
+            + "limit 10")
+        .explainContains("EnumerableCalc(expr#0..1=[{inputs}], expr#2=[/($t0, $t1)], "
+            + "expr#3=[CATCH_ERROR_EMPTY_ON_ERROR($t2)], EXPR$0=[$t3])")
+        .returns("EXPR$0=0\n"
+            + "EXPR$0=2\n"
+            + "EXPR$0=0\n"
+            + "EXPR$0=1\n"
+            + "EXPR$0=0\n"
+            + "EXPR$0=2\n"
+            + "EXPR$0=0\n");
+  }
+
+  @Test public void testExceptionHandler4() {
+    // discard all exceptions, and returns default value 0
+    CalciteAssert.that()
+        .with(CalciteConnectionProperty.ERROR_MODE, ErrorMode.RETURN_EMPTY_VALUE)
+        .query("select x / y from "
+            + "(values (1, 0), (2, 0), (3, 0)) as t(X, Y) limit 10")
+        .explainContains("EnumerableCalc(expr#0..1=[{inputs}], expr#2=[/($t0, $t1)], "
+            + "expr#3=[CATCH_ERROR_EMPTY_ON_ERROR($t2)], EXPR$0=[$t3])")
+        .returns("EXPR$0=0\n"
+            + "EXPR$0=0\n"
+            + "EXPR$0=0\n");
+  }
+
+  @Test public void testExceptionHandler5() {
+    // discard all exceptions with limit
+    CalciteAssert.that()
+        .with(CalciteConnectionProperty.ERROR_MODE, ErrorMode.RETURN_EMPTY_VALUE)
+        .query("select x / y from "
+            + "(values (1, 0), (2, 0), (3, 0)) as t(X, Y) limit 1")
+        .explainContains("EnumerableCalc(expr#0..1=[{inputs}], expr#2=[/($t0, $t1)], "
+            + "expr#3=[CATCH_ERROR_EMPTY_ON_ERROR($t2)], EXPR$0=[$t3])")
+        .returns("EXPR$0=0\n");
+  }
+
+  @Test public void testExceptionHandler6() {
+    // in aggregate call
+    CalciteAssert.that()
+        .with(CalciteConnectionProperty.ERROR_MODE, ErrorMode.RETURN_EMPTY_VALUE)
+        .query("select x, sum(1 / y) from "
+            + "(values (2, 0), (1, 1), (3, 0)) as t(X, Y) group by x limit 10")
+        .explainContains("EnumerableCalc(expr#0..1=[{inputs}], expr#2=[1], expr#3=[/($t2, $t1)], "
+            + "expr#4=[CATCH_ERROR_EMPTY_ON_ERROR($t3)], X=[$t0], $f1=[$t4])")
+        .returns("X=1; EXPR$1=1\n"
+            + "X=2; EXPR$1=0\n"
+            + "X=3; EXPR$1=0\n");
+  }
+
+  @Test public void testExceptionHandler7() {
+    // a special case:
+    // agg call "count(*)" returns the predicated row number without doing division
+    // calculation, so that exception handler ExceptionHandlerEnum.DISCARD will not be called.
+    CalciteAssert.that()
+        .with(CalciteConnectionProperty.ERROR_MODE, ErrorMode.RETURN_EMPTY_VALUE)
+        .query("select count(*) from (select x / y from "
+            + "(values (1, 0), (2, 0), (3, 0)) as t(X, Y))")
+        .explainContains("PLAN=EnumerableAggregate(group=[{}], EXPR$0=[COUNT()])\n"
+            + "  EnumerableValues(tuples=[[{ 1, 0 }, { 2, 0 }, { 3, 0 }]])")
+        .returns("EXPR$0=3\n");
   }
 
   private static String sums(int n, boolean c) {

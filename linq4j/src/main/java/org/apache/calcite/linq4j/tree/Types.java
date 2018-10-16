@@ -528,6 +528,14 @@ public abstract class Types {
     }
   }
 
+  public static Expression getDefaultValue(Type type) {
+    if (Primitive.is(type)) {
+      Primitive p = Primitive.of(type);
+      return Expressions.constant(p.defaultValue, type);
+    }
+    return Expressions.constant(null, type);
+  }
+
   /** Implementation of {@link ParameterizedType}. */
   static class ParameterizedTypeImpl implements ParameterizedType {
     private final Type rawType;

@@ -60,7 +60,8 @@ public class SqlNodeToRexConverterImpl implements SqlNodeToRexConverter {
   public RexNode convertCall(SqlRexContext cx, SqlCall call) {
     final SqlRexConvertlet convertlet = convertletTable.get(call);
     if (convertlet != null) {
-      return convertlet.convertCall(cx, call);
+      RexNode rexNode = convertlet.convertCall(cx, call);
+      return cx.getRexBuilder().makeCatchError(cx.getErrorMode(), rexNode);
     }
 
     // No convertlet was suitable. (Unlikely, because the standard

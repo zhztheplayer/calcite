@@ -247,6 +247,7 @@ public abstract class Prepare {
         SqlToRelConverter.configBuilder()
             .withTrimUnusedFields(true)
             .withExpand(THREAD_EXPAND.get())
+            .withErrorMode(context.config().errorMode())
             .withExplain(sqlQuery.getKind() == SqlKind.EXPLAIN);
     final SqlToRelConverter sqlToRelConverter =
         getSqlToRelConverter(validator, catalogReader, builder.build());

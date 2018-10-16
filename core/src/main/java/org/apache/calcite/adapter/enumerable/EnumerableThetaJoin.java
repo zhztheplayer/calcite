@@ -38,6 +38,7 @@ import org.apache.calcite.util.Pair;
 
 import com.google.common.collect.ImmutableList;
 
+import java.lang.reflect.Modifier;
 import java.util.Set;
 
 /** Implementation of {@link org.apache.calcite.rel.core.Join} in
@@ -161,9 +162,9 @@ public class EnumerableThetaJoin extends Join implements EnumerableRel {
       BlockBuilder builder, PhysType leftPhysType, PhysType rightPhysType,
       RexNode condition) {
     final ParameterExpression left_ =
-        Expressions.parameter(leftPhysType.getJavaRowType(), "left");
+        Expressions.parameter(Modifier.FINAL, leftPhysType.getJavaRowType(), "left");
     final ParameterExpression right_ =
-        Expressions.parameter(rightPhysType.getJavaRowType(), "right");
+        Expressions.parameter(Modifier.FINAL, rightPhysType.getJavaRowType(), "right");
     final RexProgramBuilder program =
         new RexProgramBuilder(
             implementor.getTypeFactory().builder()

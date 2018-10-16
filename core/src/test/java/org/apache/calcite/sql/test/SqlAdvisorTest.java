@@ -129,6 +129,7 @@ public class SqlAdvisorTest extends SqlValidatorTestCase {
           "KEYWORD(CARDINALITY)",
           "KEYWORD(CASE)",
           "KEYWORD(CAST)",
+          "KEYWORD(CATCH_ERROR)",
           "KEYWORD(CEIL)",
           "KEYWORD(CEILING)",
           "KEYWORD(CHARACTER_LENGTH)",
