@@ -764,36 +764,48 @@ public class RelBuilder {
   @Deprecated // to be removed before 2.0
   public AggCall aggregateCall(SqlAggFunction aggFunction, boolean distinct,
       RexNode filter, String alias, RexNode... operands) {
-    return aggregateCall(aggFunction, distinct, false, filter, alias,
-        ImmutableList.copyOf(operands));
+    return aggregateCall(aggFunction, distinct, false, filter, Collections.emptyList(),
+        alias, ImmutableList.copyOf(operands));
   }
 
   /** Creates a call to an aggregate function. */
+  @Deprecated // to be removed before 2.0
   public AggCall aggregateCall(SqlAggFunction aggFunction, boolean distinct,
       boolean approximate, RexNode filter, String alias, RexNode... operands) {
-    return aggregateCall(aggFunction, distinct, approximate, filter, alias,
-        ImmutableList.copyOf(operands));
+    return aggregateCall(aggFunction, distinct, approximate, filter, Collections.emptyList(),
+        alias, ImmutableList.copyOf(operands));
   }
 
   @Deprecated // to be removed before 2.0
   public AggCall aggregateCall(SqlAggFunction aggFunction, boolean distinct,
       RexNode filter, String alias, Iterable<? extends RexNode> operands) {
-    return aggregateCall(aggFunction, distinct, false, filter, alias, operands);
+    return aggregateCall(aggFunction, distinct, false, filter, Collections.emptyList(),
+        alias, operands);
   }
 
   /** Creates a call to an aggregate function. */
+  @Deprecated // to be removed before 2.0
   public AggCall aggregateCall(SqlAggFunction aggFunction, boolean distinct,
       boolean approximate, RexNode filter, String alias,
       Iterable<? extends RexNode> operands) {
     return aggregateCall(aggFunction, distinct, approximate,
-        filter, alias, operands, Collections.emptyList());
+        filter, Collections.emptyList(), alias, operands);
   }
 
   /** Creates a call to an aggregate function. */
   public AggCall aggregateCall(SqlAggFunction aggFunction, boolean distinct,
-                               boolean approximate, RexNode filter, String alias,
-                               Iterable<? extends RexNode> operands,
-                               Iterable<? extends RexNode> orderKeys) {
+                               boolean approximate, RexNode filter,
+                               Iterable<? extends RexNode> orderKeys,
+                               String alias, RexNode... operands) {
+    return aggregateCall(aggFunction, distinct, approximate, filter,
+        ImmutableList.copyOf(orderKeys), alias, ImmutableList.copyOf(operands));
+  }
+
+  /** Creates a call to an aggregate function. */
+  public AggCall aggregateCall(SqlAggFunction aggFunction, boolean distinct,
+                               boolean approximate, RexNode filter,
+                               Iterable<? extends RexNode> orderKeys,
+                               String alias, Iterable<? extends RexNode> operands) {
     if (filter != null) {
       if (filter.getType().getSqlTypeName() != SqlTypeName.BOOLEAN) {
         throw RESOURCE.filterMustBeBoolean().ex();
@@ -809,36 +821,37 @@ public class RelBuilder {
   /** Creates a call to the COUNT aggregate function. */
   public AggCall count(boolean distinct, String alias, RexNode... operands) {
     return aggregateCall(SqlStdOperatorTable.COUNT, distinct, false, null,
-        alias, operands);
+        Collections.emptyList(), alias, operands);
   }
 
   /** Creates a call to the COUNT(*) aggregate function. */
   public AggCall countStar(String alias) {
-    return aggregateCall(SqlStdOperatorTable.COUNT, false, false, null, alias);
+    return aggregateCall(SqlStdOperatorTable.COUNT, false, false, null,
+        Collections.emptyList(), alias);
   }
 
   /** Creates a call to the SUM aggregate function. */
   public AggCall sum(boolean distinct, String alias, RexNode operand) {
-    return aggregateCall(SqlStdOperatorTable.SUM, distinct, false, null, alias,
-        operand);
+    return aggregateCall(SqlStdOperatorTable.SUM, distinct, false, null,
+        Collections.emptyList(), alias, operand);
   }
 
   /** Creates a call to the AVG aggregate function. */
   public AggCall avg(boolean distinct, String alias, RexNode operand) {
-    return aggregateCall(SqlStdOperatorTable.AVG, distinct, false, null, alias,
-        operand);
+    return aggregateCall(SqlStdOperatorTable.AVG, distinct, false, null,
+        Collections.emptyList(), alias, operand);
   }
 
   /** Creates a call to the MIN aggregate function. */
   public AggCall min(String alias, RexNode operand) {
-    return aggregateCall(SqlStdOperatorTable.MIN, false, false, null, alias,
-        operand);
+    return aggregateCall(SqlStdOperatorTable.MIN, false, false, null,
+        Collections.emptyList(), alias, operand);
   }
 
   /** Creates a call to the MAX aggregate function. */
   public AggCall max(String alias, RexNode operand) {
-    return aggregateCall(SqlStdOperatorTable.MAX, false, false, null, alias,
-        operand);
+    return aggregateCall(SqlStdOperatorTable.MAX, false, false, null,
+        Collections.emptyList(), alias, operand);
   }
 
   // Methods for patterns

@@ -118,7 +118,7 @@ public class AggregateExtractProjectRule extends RelOptRule {
       newAggCallList.add(
           relBuilder.aggregateCall(aggCall.getAggregation(),
               aggCall.isDistinct(), aggCall.isApproximate(),
-              filterArg, aggCall.name, args, relBuilder.fields(aggCall.ordering)));
+              filterArg, relBuilder.fields(aggCall.ordering), aggCall.name, args));
     }
 
     final RelBuilder.GroupKey groupKey =

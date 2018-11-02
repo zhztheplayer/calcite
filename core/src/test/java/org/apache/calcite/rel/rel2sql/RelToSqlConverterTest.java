@@ -55,6 +55,7 @@ import com.google.common.collect.ImmutableList;
 
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
@@ -274,8 +275,8 @@ public class RelToSqlConverterTest {
     final RelNode root = builder
         .scan("EMP")
         .aggregate(builder.groupKey(),
-            builder.aggregateCall(SqlStdOperatorTable.SUM0, false, false, null,
-                "s", builder.field(3)))
+            builder.aggregateCall(SqlStdOperatorTable.SUM0, false, false,
+                null, Collections.emptyList(), "s", builder.field(3)))
         .build();
     final String expectedMysql = "SELECT COALESCE(SUM(`MGR`), 0) AS `s`\n"
         + "FROM `scott`.`EMP`";

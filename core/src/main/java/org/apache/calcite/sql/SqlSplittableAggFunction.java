@@ -16,6 +16,7 @@
  */
 package org.apache.calcite.sql;
 
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -119,7 +120,7 @@ public interface SqlSplittableAggFunction {
     public AggregateCall other(RelDataTypeFactory typeFactory, AggregateCall e) {
       return AggregateCall.create(SqlStdOperatorTable.COUNT, false, false,
           ImmutableIntList.of(), -1,
-          typeFactory.createSqlType(SqlTypeName.BIGINT), null);
+          typeFactory.createSqlType(SqlTypeName.BIGINT), null, RelCollations.EMPTY);
     }
 
     public AggregateCall topSplit(RexBuilder rexBuilder,
@@ -230,7 +231,7 @@ public interface SqlSplittableAggFunction {
     public AggregateCall other(RelDataTypeFactory typeFactory, AggregateCall e) {
       return AggregateCall.create(SqlStdOperatorTable.COUNT, false, false,
           ImmutableIntList.of(), -1,
-          typeFactory.createSqlType(SqlTypeName.BIGINT), null);
+          typeFactory.createSqlType(SqlTypeName.BIGINT), null, RelCollations.EMPTY);
     }
 
     public AggregateCall topSplit(RexBuilder rexBuilder,

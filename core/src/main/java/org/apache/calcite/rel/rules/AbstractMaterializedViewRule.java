@@ -1199,6 +1199,7 @@ public abstract class AbstractMaterializedViewRule extends RelOptRule {
             relBuilder.aggregateCall(
                 rollupAgg,
                 aggCall.isDistinct(), aggCall.isApproximate(), null,
+                Collections.emptyList(),
                 aggCall.name,
                 rexBuilder.makeInputRef(relBuilder.peek(),
                     aggregate.getGroupCount() + i)));
@@ -1471,7 +1472,8 @@ public abstract class AbstractMaterializedViewRule extends RelOptRule {
                   // todo handle aggregate ordering
                   relBuilder.aggregateCall(
                       rollupAgg, queryAggCall.isDistinct(), queryAggCall.isApproximate(),
-                      null, queryAggCall.name, rexBuilder.makeInputRef(input, k)));
+                      null, Collections.emptyList(), queryAggCall.name,
+                      rexBuilder.makeInputRef(input, k)));
               rewritingMapping.set(k, sourceIdx);
               added = true;
             }

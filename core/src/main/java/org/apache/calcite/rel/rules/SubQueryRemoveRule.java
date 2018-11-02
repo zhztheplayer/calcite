@@ -50,6 +50,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -125,7 +126,8 @@ public abstract class SubQueryRemoveRule extends RelOptRule {
     if (unique == null || !unique) {
       builder.aggregate(builder.groupKey(),
           builder.aggregateCall(SqlStdOperatorTable.SINGLE_VALUE, false,
-              false, null, null, builder.field(0)));
+              false, null, Collections.emptyList(), null,
+              builder.field(0)));
     }
     builder.join(JoinRelType.LEFT, builder.literal(true), variablesSet);
     return field(builder, inputCount, offset);
@@ -385,8 +387,8 @@ public abstract class SubQueryRemoveRule extends RelOptRule {
         // Builds the cross join
         builder.aggregate(builder.groupKey(),
             builder.count(false, "c"),
-            builder.aggregateCall(SqlStdOperatorTable.COUNT, false, false, null,
-                "ck", builder.fields()));
+            builder.aggregateCall(SqlStdOperatorTable.COUNT, false, false,
+                null, Collections.emptyList(), "ck", builder.fields()));
         builder.as("ct");
         if (!variablesSet.isEmpty()) {
           builder.join(JoinRelType.LEFT, builder.literal(true), variablesSet);

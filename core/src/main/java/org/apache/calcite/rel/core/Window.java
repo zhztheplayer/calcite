@@ -316,7 +316,7 @@ public abstract class Window extends SingleRel {
           final SqlAggFunction op = (SqlAggFunction) aggCall.getOperator();
           return AggregateCall.create(op, aggCall.distinct,
               false, getProjectOrdinals(aggCall.getOperands()), -1,
-              aggCall.getType(), fieldNames.get(aggCall.ordinal));
+              aggCall.getType(), fieldNames.get(aggCall.ordinal), RelCollations.EMPTY);
         }
       };
     }

@@ -18,6 +18,7 @@ package org.apache.calcite.plan;
 
 import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
@@ -478,7 +479,8 @@ public abstract class RelOptUtil {
               0,
               ret,
               null,
-              extraName);
+              extraName,
+              RelCollations.EMPTY);
 
       ret =
           LogicalAggregate.create(ret,
@@ -570,7 +572,8 @@ public abstract class RelOptUtil {
             projectedKeyCount,
             ret,
             null,
-            null);
+            null,
+            RelCollations.EMPTY);
 
     ret = LogicalAggregate.create(ret, ImmutableBitSet.range(projectedKeyCount),
         null, ImmutableList.of(aggCall));
@@ -773,7 +776,8 @@ public abstract class RelOptUtil {
       aggCalls.add(
           AggregateCall.create(
               SqlStdOperatorTable.SINGLE_VALUE, false, false,
-              ImmutableList.of(i), -1, 0, rel, null, null));
+              ImmutableList.of(i), -1, 0, rel, null, null,
+              RelCollations.EMPTY));
     }
 
     return LogicalAggregate.create(rel, ImmutableBitSet.of(), null, aggCalls);

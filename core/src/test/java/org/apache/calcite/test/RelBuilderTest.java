@@ -505,8 +505,8 @@ public class RelBuilderTest {
                     builder.literal(20)))
             .aggregate(builder.groupKey(0, 1, 2),
                 builder.aggregateCall(SqlStdOperatorTable.SUM,
-                    false, false, null, null,
-                    builder.field(0)))
+                    false, false, null, Collections.emptyList(),
+                    null, builder.field(0)))
             .project(builder.field("c"),
                 builder.field("a"))
             .build();
@@ -662,7 +662,7 @@ public class RelBuilderTest {
         builder.scan("EMP")
             .aggregate(builder.groupKey(),
                 builder.aggregateCall(SqlStdOperatorTable.COUNT, true, false,
-                    null, "C", builder.field("DEPTNO")))
+                    null, Collections.emptyList(), "C", builder.field("DEPTNO")))
             .build();
     final String expected = ""
         + "LogicalAggregate(group=[{}], C=[COUNT(DISTINCT $7)])\n"
@@ -685,9 +685,9 @@ public class RelBuilderTest {
                         builder.field(3)),
                     builder.field(1)),
                 builder.aggregateCall(SqlStdOperatorTable.COUNT, false, false,
-                    null, "C"),
+                    null, Collections.emptyList(), "C"),
                 builder.aggregateCall(SqlStdOperatorTable.SUM, false, false,
-                    null, "S",
+                    null, Collections.emptyList(), "S",
                     builder.call(SqlStdOperatorTable.PLUS, builder.field(3),
                         builder.literal(1))))
             .build();
@@ -714,7 +714,7 @@ public class RelBuilderTest {
             .aggregate(
                 builder.groupKey(builder.field(1)),
                 builder.aggregateCall(SqlStdOperatorTable.COUNT, false, false,
-                    null, "C"))
+                    null, Collections.emptyList(), "C"))
             .aggregate(
                 builder.groupKey(builder.field(0)))
             .build();
@@ -739,7 +739,7 @@ public class RelBuilderTest {
             .aggregate(
                 builder.groupKey(builder.field(1)),
                 builder.aggregateCall(SqlStdOperatorTable.COUNT, false, false,
-                    null, "C"))
+                    null, Collections.emptyList(), "C"))
             .filter(
                 builder.call(SqlStdOperatorTable.GREATER_THAN, builder.field(1),
                     builder.literal(3)))
@@ -768,7 +768,8 @@ public class RelBuilderTest {
                         ImmutableBitSet.of())),
                 builder.aggregateCall(SqlStdOperatorTable.COUNT, false, false,
                     builder.call(SqlStdOperatorTable.GREATER_THAN,
-                        builder.field("EMPNO"), builder.literal(100)), "C"))
+                        builder.field("EMPNO"), builder.literal(100)),
+                    Collections.emptyList(), "C"))
             .build();
     final String expected = ""
         + "LogicalAggregate(group=[{7}], groups=[[{7}, {}]], C=[COUNT() FILTER $8])\n"
@@ -789,7 +790,8 @@ public class RelBuilderTest {
               .aggregate(
                   builder.groupKey(builder.field("DEPTNO")),
                   builder.aggregateCall(SqlStdOperatorTable.SUM, false, false,
-                      builder.field("COMM"), "C", builder.field("SAL")))
+                      builder.field("COMM"), Collections.emptyList(), "C",
+                      builder.field("SAL")))
               .build();
       fail("expected error, got " + root);
     } catch (CalciteException e) {
@@ -810,8 +812,8 @@ public class RelBuilderTest {
                 builder.groupKey(builder.field("DEPTNO")),
                 builder.aggregateCall(SqlStdOperatorTable.SUM, false, false,
                     builder.call(SqlStdOperatorTable.LESS_THAN,
-                        builder.field("COMM"), builder.literal(100)), "C",
-                    builder.field("SAL")))
+                        builder.field("COMM"), builder.literal(100)),
+                    Collections.emptyList(), "C", builder.field("SAL")))
             .build();
     final String expected = ""
         + "LogicalAggregate(group=[{7}], C=[SUM($5) FILTER $8])\n"
@@ -913,7 +915,8 @@ public class RelBuilderTest {
         builder.scan("EMP")
             .aggregate(builder.groupKey(6, 7),
                 builder.aggregateCall(SqlStdOperatorTable.GROUPING, false,
-                    false, null, "g", builder.field("DEPTNO")))
+                    false, null, Collections.emptyList(), "g",
+                    builder.field("DEPTNO")))
             .build();
     final String expected = ""
         + "LogicalAggregate(group=[{6, 7}], g=[GROUPING($7)])\n"
@@ -928,7 +931,8 @@ public class RelBuilderTest {
           builder.scan("EMP")
               .aggregate(builder.groupKey(6, 7),
                   builder.aggregateCall(SqlStdOperatorTable.GROUPING, true,
-                      false, null, "g", builder.field("DEPTNO")))
+                      false, null, Collections.emptyList(), "g",
+                      builder.field("DEPTNO")))
               .build();
       fail("expected error, got " + root);
     } catch (IllegalArgumentException e) {
@@ -943,8 +947,8 @@ public class RelBuilderTest {
           builder.scan("EMP")
               .aggregate(builder.groupKey(6, 7),
                   builder.aggregateCall(SqlStdOperatorTable.GROUPING, false,
-                      false, builder.literal(true), "g",
-                      builder.field("DEPTNO")))
+                      false, builder.literal(true), Collections.emptyList(),
+                      "g", builder.field("DEPTNO")))
               .build();
       fail("expected error, got " + root);
     } catch (IllegalArgumentException e) {
@@ -1483,7 +1487,7 @@ public class RelBuilderTest {
                 builder.literal(20))
             .aggregate(builder.groupKey(builder.field("EMP_alias", "DEPTNO")),
                 builder.aggregateCall(SqlStdOperatorTable.SUM, false, false,
-                    null, null, builder.field(1)))
+                    null, Collections.emptyList(), null, builder.field(1)))
             .project(builder.alias(builder.field(1), "sum"),
                 builder.field("EMP_alias", "DEPTNO"))
             .build();

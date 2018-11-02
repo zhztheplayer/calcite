@@ -20,6 +20,7 @@ import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Aggregate.Group;
@@ -410,7 +411,7 @@ public final class AggregateExpandDistinctAggregatesRule extends RelOptRule {
     distinctAggCalls.add(
         AggregateCall.create(SqlStdOperatorTable.GROUPING, false, false,
             ImmutableIntList.copyOf(fullGroupSet), -1, groupSets.size(),
-            relBuilder.peek(), null, "$g"));
+            relBuilder.peek(), null, "$g", RelCollations.EMPTY));
     for (Ord<ImmutableBitSet> groupSet : Ord.zip(groupSets)) {
       filters.put(groupSet.e, z + groupSet.i);
     }

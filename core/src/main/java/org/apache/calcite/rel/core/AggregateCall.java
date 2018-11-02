@@ -134,7 +134,7 @@ public class AggregateCall {
       boolean distinct, List<Integer> argList, int groupCount, RelNode input,
       RelDataType type, String name) {
     return create(aggFunction, distinct, false, argList, -1, groupCount, input,
-        type, name);
+        type, name, RelCollations.EMPTY);
   }
 
   @Deprecated // to be removed before 2.0
@@ -142,10 +142,11 @@ public class AggregateCall {
       boolean distinct, List<Integer> argList, int filterArg, int groupCount,
       RelNode input, RelDataType type, String name) {
     return create(aggFunction, distinct, false, argList, -1, groupCount, input,
-        type, name);
+        type, name, RelCollations.EMPTY);
   }
 
   /** Creates an AggregateCall, inferring its type if {@code type} is null. */
+  @Deprecated // to be removed before 2.0
   public static AggregateCall create(SqlAggFunction aggFunction,
       boolean distinct, boolean approximate, List<Integer> argList,
       int filterArg, int groupCount,
@@ -177,10 +178,12 @@ public class AggregateCall {
   public static AggregateCall create(SqlAggFunction aggFunction,
       boolean distinct, List<Integer> argList, int filterArg, RelDataType type,
       String name) {
-    return create(aggFunction, distinct, false, argList, filterArg, type, name);
+    return create(aggFunction, distinct, false, argList, filterArg, type, name,
+        RelCollations.EMPTY);
   }
 
   /** Creates an AggregateCall. */
+  @Deprecated // to be removed before 2.0
   public static AggregateCall create(SqlAggFunction aggFunction,
       boolean distinct, boolean approximate, List<Integer> argList,
       int filterArg, RelDataType type, String name) {

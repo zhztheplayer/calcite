@@ -2863,17 +2863,29 @@ public class SqlToRelConverterTest extends SqlToRelTestBase {
   }
 
   @Test public void testWithinGroup1() {
-    final String sql = "SELECT deptno, collect(empno) "
-        + "WITHIN GROUP(order by deptno, hiredate desc) "
-        + "FROM emp GROUP BY deptno";
+    final String sql = "select deptno, collect(empno) "
+        + "within group (order by deptno, hiredate desc) "
+        + "from emp group by deptno";
     System.out.println(sql);
     sql(sql).ok();
   }
 
   @Test public void testWithinGroup2() {
-    final String sql = "SELECT deptno, sum(empno) "
-        + "WITHIN GROUP(order by deptno, hiredate desc) "
-        + "FROM emp GROUP BY deptno";
+    final String sql = "select deptno, sum(empno) "
+        + "within group(order by deptno, hiredate desc) "
+        + "from emp group by deptno";
+    System.out.println(sql);
+    sql(sql).ok();
+  }
+
+  @Test public void testWithinGroup3() {
+    final String sql = "select dept.deptno, "
+        + "collect(sal) within group (order by sal desc) as s, "
+        + "collect(sal) within group (order by 1)as s1, "
+        + "collect(sal) within group (order by sal) filter (where sal > 2000) as s2 "
+        + "from emp "
+        + "join dept using (deptno) "
+        + "group by dept.deptno";
     System.out.println(sql);
     sql(sql).ok();
   }

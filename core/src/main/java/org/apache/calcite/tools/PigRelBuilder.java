@@ -31,6 +31,7 @@ import org.apache.calcite.util.Util;
 import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -147,7 +148,7 @@ public class PigRelBuilder extends RelBuilder {
               SqlStdOperatorTable.ROW, fields());
       aggregate(groupKey.e,
           aggregateCall(SqlStdOperatorTable.COLLECT, false, false, null,
-              getAlias(), row));
+              Collections.emptyList(), getAlias(), row));
       if (groupKey.i < n - 1) {
         push(r);
         List<RexNode> predicates = new ArrayList<>();
