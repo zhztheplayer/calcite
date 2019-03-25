@@ -5623,6 +5623,26 @@ SqlCall withinGroup(SqlNode arg) :
     }
 }
 
+SqlCall nullTreatment(SqlCall arg) :
+{
+    final Span span;
+}
+{
+    (
+        <IGNORE> { span = span(); }
+        <NULLS> {
+            return SqlStdOperatorTable.IGNORE_NULLS.createCall(
+                                span.end(this), arg);
+        }
+    |
+        <RESPECT> { span = span(); }
+        <NULLS> {
+            return SqlStdOperatorTable.RESPECT_NULLS.createCall(
+                                span.end(this), arg);
+        }
+    )
+}
+
 /**
  * Parses a call to a named function (could be a builtin with regular
  * syntax, or else a UDF).
@@ -5642,13 +5662,14 @@ SqlNode NamedFunctionCall() :
 {
     final SqlFunctionCategory funcType;
     final SqlIdentifier qualifiedName;
-    final Span s;
+    final Span s, s1;
     final List<SqlNode> args;
     SqlCall call;
     final Span filterSpan;
     final SqlNode filter;
     final SqlNode over;
     SqlLiteral quantifier = null;
+    SqlLiteral ignoreNulls = null;
     SqlNodeList orderList = null;
     final Span withinGroupSpan;
 }
@@ -5678,9 +5699,23 @@ SqlNode NamedFunctionCall() :
             args.remove(0);
         }
     )
+    [
+        (
+            <IGNORE> { s1 = span(); } <NULLS> {
+                ignoreNulls = SqlLiteral.createBoolean(true, s1.end(this));
+            }
+        |
+            <RESPECT> { s1 = span(); } <NULLS> {
+                ignoreNulls = SqlLiteral.createBoolean(false, s1.end(this));
+            }
+        )
+    ]
     {
-        call = createCall(qualifiedName, s.end(this), funcType, quantifier, args);
+        call = createCall(qualifiedName, s.end(this), funcType, quantifier, ignoreNulls, args);
     }
+    [
+        call = nullTreatment(call)
+    ]
     [
         call = withinGroup(call)
     ]
@@ -6369,6 +6404,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < HOLD: "HOLD" >
 |   < HOUR: "HOUR" >
 |   < IDENTITY: "IDENTITY" >
+|   < IGNORE: "IGNORE" >
 |   < IMMEDIATE: "IMMEDIATE" >
 |   < IMMEDIATELY: "IMMEDIATELY" >
 |   < IMPLEMENTATION: "IMPLEMENTATION" >
@@ -6579,6 +6615,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < REPEATABLE: "REPEATABLE" >
 |   < REPLACE: "REPLACE" >
 |   < RESET: "RESET" >
+|   < RESPECT: "RESPECT" >
 |   < RESTART: "RESTART" >
 |   < RESTRICT: "RESTRICT" >
 |   < RESULT: "RESULT" >

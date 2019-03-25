@@ -37,10 +37,19 @@ import java.util.List;
  * kind.)
  */
 public abstract class SqlCall extends SqlNode {
+
+  protected SqlLiteral ignoreNulls;
+
   //~ Constructors -----------------------------------------------------------
 
   public SqlCall(SqlParserPos pos) {
     super(pos);
+    this.ignoreNulls = null;
+  }
+
+  public SqlCall(SqlParserPos pos, SqlLiteral ignoreNulls) {
+    super(pos);
+    this.ignoreNulls = ignoreNulls;
   }
 
   //~ Methods ----------------------------------------------------------------
@@ -202,6 +211,16 @@ public abstract class SqlCall extends SqlNode {
 
   public SqlLiteral getFunctionQuantifier() {
     return null;
+  }
+
+  /** Returns whether it ignores nulls. */
+  public SqlLiteral ignoreNulls() {
+    return ignoreNulls;
+  }
+
+  /** Set whether it ignores nulls. */
+  public void setIgnoreNulls(SqlLiteral ignoreNulls) {
+    this.ignoreNulls = ignoreNulls;
   }
 }
 

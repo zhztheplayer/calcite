@@ -4370,6 +4370,13 @@ public class SqlParserTest {
         "(SUM(`SAL`) OVER (RANGE BETWEEN INTERVAL '1' SECOND FOLLOWING AND INTERVAL '5' DAY FOLLOWING))");
   }
 
+  @Test public void testNullTreatment() {
+    checkExp("lead(e) respect nulls over ()",
+        "((LEAD(`E`) RESPECT NULLS) OVER ())");
+    checkExp("lead(e) ignore nulls over ()",
+        "((LEAD(`E`) IGNORE NULLS) OVER ())");
+  }
+
   @Test public void testElementFunc() {
     checkExp("element(a)", "ELEMENT(`A`)");
   }

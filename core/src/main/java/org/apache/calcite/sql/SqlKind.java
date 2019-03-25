@@ -223,6 +223,11 @@ public enum SqlKind {
   WITHIN_GROUP,
 
   /**
+   * NULL TREATMENT operator
+   */
+  NULL_TREATMENT,
+
+  /**
    * Window specification
    */
   WINDOW,

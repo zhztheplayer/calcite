@@ -341,7 +341,8 @@ public class RexBuilder {
       boolean physical,
       boolean allowPartial,
       boolean nullWhenCountZero,
-      boolean distinct) {
+      boolean distinct,
+      boolean ignoreNulls) {
     assert operator != null;
     assert exprs != null;
     assert partitionKeys != null;
@@ -353,7 +354,7 @@ public class RexBuilder {
             lowerBound,
             upperBound,
             physical);
-    final RexOver over = new RexOver(type, operator, exprs, window, distinct);
+    final RexOver over = new RexOver(type, operator, exprs, window, distinct, ignoreNulls);
     RexNode result = over;
 
     // This should be correct but need time to go over test results.
@@ -370,14 +371,15 @@ public class RexBuilder {
                   SqlStdOperatorTable.COUNT,
                   exprs,
                   window,
-                  distinct),
+                  distinct,
+                  ignoreNulls),
               makeLiteral(
                   BigDecimal.ZERO,
                   bigintType,
                   SqlTypeName.DECIMAL)),
           ensureType(type, // SUM0 is non-nullable, thus need a cast
               new RexOver(typeFactory.createTypeWithNullability(type, false),
-              operator, exprs, window, distinct),
+                  operator, exprs, window, distinct, ignoreNulls),
               false),
           makeCast(type, constantNull()));
     }
@@ -396,7 +398,8 @@ public class RexBuilder {
                       SqlStdOperatorTable.COUNT,
                       ImmutableList.of(),
                       window,
-                      distinct),
+                      distinct,
+                      ignoreNulls),
                   makeLiteral(
                       BigDecimal.valueOf(2),
                       bigintType,

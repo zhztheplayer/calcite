@@ -120,7 +120,8 @@ public class ProjectWindowTransposeRule extends RelOptRule {
                 call.getType(),
                 clonedOperands,
                 ((Window.RexWinAggCall) call).ordinal,
-                ((Window.RexWinAggCall) call).distinct);
+                ((Window.RexWinAggCall) call).distinct,
+                ((Window.RexWinAggCall) call).ignoreNulls);
           } else {
             return call;
           }

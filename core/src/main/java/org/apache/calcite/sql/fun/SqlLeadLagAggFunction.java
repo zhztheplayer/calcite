@@ -94,6 +94,10 @@ public class SqlLeadLagAggFunction extends SqlAggFunction {
     return false;
   }
 
+  /** Returns whether the operator allows specifying null treatment. */
+  @Override public boolean allowsNullTreatment() {
+    return true;
+  }
 }
 
 // End SqlLeadLagAggFunction.java

@@ -32,6 +32,7 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLateralOperator;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNullTreatmentOperator;
 import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
@@ -1380,6 +1381,14 @@ public class SqlStdOperatorTable extends ReflectiveSqlOperatorTable {
    * </ol>
    */
   public static final SqlBinaryOperator OVER = new SqlOverOperator();
+
+  /** <code>RESPECT NULLS</code> operator. */
+  public static final SqlNullTreatmentOperator RESPECT_NULLS =
+      new SqlNullTreatmentOperator("RESPECT NULLS");
+
+  /** <code>IGNORE NULLS</code> operator. */
+  public static final SqlNullTreatmentOperator IGNORE_NULLS =
+      new SqlNullTreatmentOperator("IGNORE NULLS");
 
   /**
    * An <code>REINTERPRET</code> operator is internal to the planner. When the

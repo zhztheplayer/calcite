@@ -114,10 +114,12 @@ public class SqlShuttle extends SqlBasicVisitor<SqlNode> {
 
     public SqlNode result() {
       if (update || alwaysCopy) {
-        return call.getOperator().createCall(
+        SqlCall newCall = call.getOperator().createCall(
             call.getFunctionQuantifier(),
             call.getParserPosition(),
             clonedOperands);
+        newCall.setIgnoreNulls(call.ignoreNulls());
+        return newCall;
       } else {
         return call;
       }

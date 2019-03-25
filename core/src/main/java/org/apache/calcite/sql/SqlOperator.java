@@ -252,6 +252,24 @@ public abstract class SqlOperator {
   }
 
   /**
+   * Creates a call to this operand with an array of operands and specifying
+   * whether it ignores nulls.
+   *
+   * @param functionQualifier function qualifier (e.g. "DISTINCT"), may be
+   * @param ignoreNulls       Whether ignore nulls
+   * @param pos               parser position of the identifier of the call
+   * @param operands          array of operands
+   */
+  public SqlCall createCall(
+      SqlLiteral functionQualifier,
+      SqlLiteral ignoreNulls,
+      SqlParserPos pos,
+      SqlNode... operands) {
+    pos = pos.plusAll(Arrays.asList(operands));
+    return new SqlBasicCall(this, operands, pos, false, functionQualifier, ignoreNulls);
+  }
+
+  /**
    * Creates a call to this operand with an array of operands.
    *
    * <p>The position of the resulting call is the union of the <code>
@@ -941,6 +959,11 @@ public abstract class SqlOperator {
    */
   public boolean argumentMustBeScalar(int ordinal) {
     return true;
+  }
+
+  /** Returns whether the operator allows specifying null treatment. */
+  public boolean allowsNullTreatment() {
+    return false;
   }
 }
 

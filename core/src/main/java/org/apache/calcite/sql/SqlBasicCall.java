@@ -43,12 +43,22 @@ public class SqlBasicCall extends SqlCall {
       SqlNode[] operands,
       SqlParserPos pos,
       boolean expanded,
-      SqlLiteral functionQualifier) {
-    super(pos);
+      SqlLiteral functionQualifier,
+      SqlLiteral ignoreNulls) {
+    super(pos, ignoreNulls);
     this.operator = Objects.requireNonNull(operator);
     this.operands = operands;
     this.expanded = expanded;
     this.functionQuantifier = functionQualifier;
+  }
+
+  protected SqlBasicCall(
+      SqlOperator operator,
+      SqlNode[] operands,
+      SqlParserPos pos,
+      boolean expanded,
+      SqlLiteral functionQualifier) {
+    this(operator, operands, pos, expanded, functionQualifier, null);
   }
 
   public SqlKind getKind() {
@@ -96,6 +106,10 @@ public class SqlBasicCall extends SqlCall {
     return getOperator().createCall(getFunctionQuantifier(), pos, operands);
   }
 
+  /** Returns whether it ignores nulls. */
+  @Override public SqlLiteral ignoreNulls() {
+    return ignoreNulls;
+  }
 }
 
 // End SqlBasicCall.java

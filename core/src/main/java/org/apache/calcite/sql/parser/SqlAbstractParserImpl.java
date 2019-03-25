@@ -375,6 +375,7 @@ public abstract class SqlAbstractParserImpl {
    * @param pos               Position in source code
    * @param funcType          Type of function
    * @param functionQualifier Qualifier
+   * @param ignoreNulls       Whether ignore nulls
    * @param operands          Operands to call
    * @return Call
    */
@@ -383,6 +384,29 @@ public abstract class SqlAbstractParserImpl {
       SqlParserPos pos,
       SqlFunctionCategory funcType,
       SqlLiteral functionQualifier,
+      SqlLiteral ignoreNulls,
+      Iterable<? extends SqlNode> operands) {
+    return createCall(funName, pos, funcType, functionQualifier, ignoreNulls,
+        Iterables.toArray(operands, SqlNode.class));
+  }
+
+  /**
+   * Creates a call.
+   *
+   * @param funName           Name of function
+   * @param pos               Position in source code
+   * @param funcType          Type of function
+   * @param functionQualifier Qualifier
+   * @param ignoreNulls       Whether ignore nulls
+   * @param operands          Operands to call
+   * @return Call
+   */
+  protected SqlCall createCall(
+      SqlIdentifier funName,
+      SqlParserPos pos,
+      SqlFunctionCategory funcType,
+      SqlLiteral functionQualifier,
+      SqlLiteral ignoreNulls,
       SqlNode[] operands) {
     SqlOperator fun = null;
 
@@ -393,6 +417,7 @@ public abstract class SqlAbstractParserImpl {
     if (funName.isSimple()) {
       final List<SqlOperator> list = new ArrayList<>();
       opTab.lookupOperatorOverloads(funName, funcType, SqlSyntax.FUNCTION, list);
+
       if (list.size() == 1) {
         fun = list.get(0);
       }
@@ -405,7 +430,28 @@ public abstract class SqlAbstractParserImpl {
           funcType);
     }
 
-    return fun.createCall(functionQualifier, pos, operands);
+    SqlCall call = fun.createCall(functionQualifier, pos, operands);
+    call.setIgnoreNulls(ignoreNulls);
+    return call;
+  }
+
+  /**
+   * Creates a call.
+   *
+   * @param funName           Name of function
+   * @param pos               Position in source code
+   * @param funcType          Type of function
+   * @param functionQualifier Qualifier
+   * @param operands          Operands to call
+   * @return Call
+   */
+  protected SqlCall createCall(
+      SqlIdentifier funName,
+      SqlParserPos pos,
+      SqlFunctionCategory funcType,
+      SqlLiteral functionQualifier,
+      SqlNode[] operands) {
+    return createCall(funName, pos, funcType, functionQualifier, null, operands);
   }
 
   /**

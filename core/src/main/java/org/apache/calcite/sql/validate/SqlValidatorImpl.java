@@ -5264,6 +5264,13 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
       SqlCall call,
       SqlValidatorScope scope) {
     final SqlOperator operator = call.getOperator();
+
+    if (call.ignoreNulls() != null
+        && !call.getOperator().allowsNullTreatment()) {
+      throw newValidationError(call,
+          Static.RESOURCE.disallowsNullTreatment(call.getOperator().getName()));
+    }
+
     if ((call.operandCount() == 0)
         && (operator.getSyntax() == SqlSyntax.FUNCTION_ID)
         && !call.isExpanded()
