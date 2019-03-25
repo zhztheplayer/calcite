@@ -54,6 +54,7 @@ import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
+import org.apache.calcite.util.TestUtil;
 
 import com.google.common.collect.ImmutableList;
 
@@ -61,6 +62,8 @@ import org.junit.Test;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.calcite.test.Matchers.isLinux;
 
@@ -323,15 +326,30 @@ public class RelToSqlConverterTest {
         + "from \"foodmart\".\"product\"";
     final String expectedPostgresql = "SELECT CASE WHEN (COUNT(\"net_weight\")"
         + " OVER (ORDER BY \"product_id\" ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)) > 0 "
-        + "THEN CAST(COALESCE(SUM(\"net_weight\")"
+        + "THEN COALESCE(SUM(\"net_weight\")"
         + " OVER (ORDER BY \"product_id\" ROWS BETWEEN 3 PRECEDING AND CURRENT ROW), 0)"
-        + " AS DOUBLE PRECISION) "
-        + "ELSE NULL END / (COUNT(\"net_weight\")"
+        + " ELSE NULL END / (COUNT(\"net_weight\")"
         + " OVER (ORDER BY \"product_id\" ROWS BETWEEN 3 PRECEDING AND CURRENT ROW))\n"
         + "FROM \"foodmart\".\"product\"";
     sql(query)
         .withPostgresql()
         .ok(expectedPostgresql);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-2722">[CALCITE-2722]
+   * SqlImplementor createLeftCall method throws StackOverflowError</a>. */
+  @Test public void testStack() {
+    final RelBuilder builder = relBuilder();
+    final RelNode root = builder
+        .scan("EMP")
+        .filter(
+            builder.or(
+                IntStream.range(1, 10000)
+                    .mapToObj(i -> builder.equals(builder.field("EMPNO"), builder.literal(i)))
+                    .collect(Collectors.toList())))
+        .build();
+    assertThat(toSql(root), notNullValue());
   }
 
   /** Test case for
@@ -608,6 +626,54 @@ public class RelToSqlConverterTest {
         + "FROM foodmart.product\n"
         + "LIMIT 100\nOFFSET 10";
     sql(query).withHive().ok(expected);
+  }
+
+  @Test public void testPositionFunctionForHive() {
+    final String query = "select position('A' IN 'ABC') from \"product\"";
+    final String expected = "SELECT INSTR('ABC', 'A')\n"
+        + "FROM foodmart.product";
+    sql(query).withHive().ok(expected);
+  }
+
+  @Test public void testPositionFunctionForBigQuery() {
+    final String query = "select position('A' IN 'ABC') from \"product\"";
+    final String expected = "SELECT STRPOS('ABC', 'A')\n"
+        + "FROM foodmart.product";
+    sql(query).withBigquery().ok(expected);
+  }
+
+  @Test public void testModFunctionForHive() {
+    final String query = "select mod(11,3) from \"product\"";
+    final String expected = "SELECT 11 % 3\n"
+        + "FROM foodmart.product";
+    sql(query).withHive().ok(expected);
+  }
+
+  @Test public void testUnionOperatorForBigQuery() {
+    final String query = "select mod(11,3) from \"product\"\n"
+        + "UNION select 1 from \"product\"";
+    final String expected = "SELECT MOD(11, 3)\n"
+        + "FROM foodmart.product\n"
+        + "UNION DISTINCT\nSELECT 1\nFROM foodmart.product";
+    sql(query).withBigquery().ok(expected);
+  }
+
+  @Test public void testIntersectOperatorForBigQuery() {
+    final String query = "select mod(11,3) from \"product\"\n"
+        + "INTERSECT select 1 from \"product\"";
+    final String expected = "SELECT MOD(11, 3)\n"
+        + "FROM foodmart.product\n"
+        + "INTERSECT DISTINCT\nSELECT 1\nFROM foodmart.product";
+    sql(query).withBigquery().ok(expected);
+  }
+
+  @Test public void testExceptOperatorForBigQuery() {
+    final String query = "select mod(11,3) from \"product\"\n"
+        + "EXCEPT select 1 from \"product\"";
+    final String expected = "SELECT MOD(11, 3)\n"
+        + "FROM foodmart.product\n"
+        + "EXCEPT DISTINCT\nSELECT 1\nFROM foodmart.product";
+    sql(query).withBigquery().ok(expected);
   }
 
   @Test public void testHiveSelectQueryWithOrderByDescAndNullsFirstShouldBeEmulated() {
@@ -1398,6 +1464,42 @@ public class RelToSqlConverterTest {
         .withHsqldb()
         .ok("SELECT *\n"
             + "FROM (VALUES  (" + expected + ")) AS t (EXPR$0)");
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-2625">[CALCITE-2625]
+   * Removing Window Boundaries from SqlWindow of Aggregate Function which do not allow Framing</a>
+   * */
+  @Test public void testRowNumberFunctionForPrintingOfFrameBoundary() {
+    String query = "SELECT row_number() over (order by \"hire_date\") FROM \"employee\"";
+    String expected = "SELECT ROW_NUMBER() OVER (ORDER BY \"hire_date\")\n"
+        + "FROM \"foodmart\".\"employee\"";
+    sql(query).ok(expected);
+  }
+
+  @Test public void testRankFunctionForPrintingOfFrameBoundary() {
+    String query = "SELECT rank() over (order by \"hire_date\") FROM \"employee\"";
+    String expected = "SELECT RANK() OVER (ORDER BY \"hire_date\")\n"
+        + "FROM \"foodmart\".\"employee\"";
+    sql(query).ok(expected);
+  }
+
+  @Test public void testLeadFunctionForPrintingOfFrameBoundary() {
+    String query = "SELECT lead(\"employee_id\",1,'NA') over "
+        + "(partition by \"hire_date\" order by \"employee_id\") FROM \"employee\"";
+    String expected = "SELECT LEAD(\"employee_id\", 1, 'NA') OVER "
+        + "(PARTITION BY \"hire_date\" ORDER BY \"employee_id\")\n"
+        + "FROM \"foodmart\".\"employee\"";
+    sql(query).ok(expected);
+  }
+
+  @Test public void testLagFunctionForPrintingOfFrameBoundary() {
+    String query = "SELECT lag(\"employee_id\",1,'NA') over "
+        + "(partition by \"hire_date\" order by \"employee_id\") FROM \"employee\"";
+    String expected = "SELECT LAG(\"employee_id\", 1, 'NA') OVER "
+        + "(PARTITION BY \"hire_date\" ORDER BY \"employee_id\")\n"
+        + "FROM \"foodmart\".\"employee\"";
+    sql(query).ok(expected);
   }
 
   /** Test case for
@@ -2888,6 +2990,13 @@ public class RelToSqlConverterTest {
     sql(query).ok(expected);
   }
 
+  @Test public void testJsonPretty() {
+    String query = "select json_pretty(\"product_name\") from \"product\"";
+    final String expected = "SELECT JSON_PRETTY(\"product_name\" FORMAT JSON)\n"
+            + "FROM \"foodmart\".\"product\"";
+    sql(query).ok(expected);
+  }
+
   @Test public void testJsonValue() {
     String query = "select json_value(\"product_name\", 'lax $') from \"product\"";
     // todo translate to JSON_VALUE rather than CAST
@@ -2963,6 +3072,30 @@ public class RelToSqlConverterTest {
     sql(query).ok(expected);
   }
 
+  @Test public void testCrossJoinEmulationForSpark() {
+    String query = "select * from \"employee\", \"department\"";
+    final String expected = "SELECT *\n"
+        + "FROM foodmart.employee\n"
+        + "CROSS JOIN foodmart.department";
+    sql(query).withSpark().ok(expected);
+  }
+
+  @Test public void testJsonType() {
+    String query = "select json_type(\"product_name\") from \"product\"";
+    final String expected = "SELECT "
+            + "JSON_TYPE(\"product_name\" FORMAT JSON)\n"
+            + "FROM \"foodmart\".\"product\"";
+    sql(query).ok(expected);
+  }
+
+  @Test public void testJsonDepth() {
+    String query = "select json_depth(\"product_name\") from \"product\"";
+    final String expected = "SELECT "
+            + "JSON_DEPTH(\"product_name\" FORMAT JSON)\n"
+            + "FROM \"foodmart\".\"product\"";
+    sql(query).ok(expected);
+  }
+
   /** Fluid interface to run tests. */
   static class Sql {
     private final SchemaPlus schema;
@@ -3028,6 +3161,14 @@ public class RelToSqlConverterTest {
       return dialect(SqlDialect.DatabaseProduct.VERTICA.getDialect());
     }
 
+    Sql withBigquery() {
+      return dialect(SqlDialect.DatabaseProduct.BIG_QUERY.getDialect());
+    }
+
+    Sql withSpark() {
+      return dialect(DatabaseProduct.SPARK.getDialect());
+    }
+
     Sql withPostgresqlModifiedTypeSystem() {
       // Postgresql dialect with max length for varchar set to 256
       final PostgresqlSqlDialect postgresqlSqlDialect =
@@ -3087,10 +3228,8 @@ public class RelToSqlConverterTest {
           rel = transform.apply(rel);
         }
         return toSql(rel, dialect);
-      } catch (RuntimeException e) {
-        throw e;
       } catch (Exception e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     }
 

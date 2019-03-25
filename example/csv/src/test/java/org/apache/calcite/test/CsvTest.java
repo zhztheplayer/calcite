@@ -22,6 +22,7 @@ import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.Sources;
+import org.apache.calcite.util.TestUtil;
 import org.apache.calcite.util.Util;
 
 import com.google.common.collect.ImmutableMap;
@@ -199,7 +200,7 @@ public class CsvTest {
         assertThat(o, is(300L));
         assertThat(resultSet.next(), is(false));
       } catch (SQLException e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     }).ok();
   }
@@ -251,7 +252,7 @@ public class CsvTest {
         + "select max(empno) from EMPS where gender='F'";
     final String expected = "PLAN="
         + "EnumerableAggregate(group=[{}], EXPR$0=[MAX($0)])\n"
-        + "  EnumerableCalc(expr#0..1=[{inputs}], expr#2=['F'], "
+        + "  EnumerableCalc(expr#0..1=[{inputs}], expr#2=['F':VARCHAR], "
         + "expr#3=[=($t1, $t2)], proj#0..1=[{exprs}], $condition=[$t3])\n"
         + "    CsvTableScan(table=[[SALES, EMPS]], fields=[[0, 3]])\n";
     sql("smart", sql).returns(expected).ok();
@@ -320,7 +321,7 @@ public class CsvTest {
         CsvTest.collect(lines, resultSet);
         Assert.assertEquals(Arrays.asList(expected), lines);
       } catch (SQLException e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     };
   }
@@ -337,7 +338,7 @@ public class CsvTest {
         Collections.sort(lines);
         Assert.assertEquals(expectedLines, lines);
       } catch (SQLException e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     };
   }
@@ -951,7 +952,7 @@ public class CsvTest {
     try {
       output(resultSet, System.out);
     } catch (SQLException e) {
-      throw new RuntimeException(e);
+      throw TestUtil.rethrow(e);
     }
     return null;
   }
@@ -1016,7 +1017,7 @@ public class CsvTest {
         checkSql(sql, model, expect);
         return this;
       } catch (SQLException e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     }
 

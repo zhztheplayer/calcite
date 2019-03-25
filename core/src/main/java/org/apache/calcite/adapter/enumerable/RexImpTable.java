@@ -44,6 +44,7 @@ import org.apache.calcite.schema.ImplementableFunction;
 import org.apache.calcite.schema.impl.AggregateFunctionImpl;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlBinaryOperator;
+import org.apache.calcite.sql.SqlJsonConstructorNullClause;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlJsonArrayAggAggFunction;
 import org.apache.calcite.sql.fun.SqlJsonObjectAggAggFunction;
@@ -96,9 +97,12 @@ import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ACOS;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.AND;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ANY_VALUE;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ASCII;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ASIN;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ATAN;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ATAN2;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.BIT_AND;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.BIT_OR;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CARDINALITY;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CASE;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CAST;
@@ -160,11 +164,14 @@ import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ITEM;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_API_COMMON_SYNTAX;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_ARRAY;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_ARRAYAGG;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_DEPTH;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_EXISTS;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_OBJECT;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_OBJECTAGG;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_PRETTY;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_QUERY;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_STRUCTURED_VALUE_EXPRESSION;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_TYPE;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_VALUE_ANY;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.JSON_VALUE_EXPRESSION;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.LAG;
@@ -273,6 +280,7 @@ public class RexImpTable {
         NullPolicy.STRICT);
     defineMethod(OVERLAY, BuiltInMethod.OVERLAY.method, NullPolicy.STRICT);
     defineMethod(POSITION, BuiltInMethod.POSITION.method, NullPolicy.STRICT);
+    defineMethod(ASCII, BuiltInMethod.ASCII.method, NullPolicy.STRICT);
 
     final TrimImplementor trimImplementor = new TrimImplementor();
     defineImplementor(TRIM, NullPolicy.STRICT, trimImplementor, false);
@@ -448,11 +456,20 @@ public class RexImpTable {
     defineMethod(JSON_VALUE_ANY, BuiltInMethod.JSON_VALUE_ANY.method, NullPolicy.NONE);
     defineMethod(JSON_QUERY, BuiltInMethod.JSON_QUERY.method, NullPolicy.NONE);
     defineMethod(JSON_OBJECT, BuiltInMethod.JSON_OBJECT.method, NullPolicy.NONE);
-    aggMap.put(JSON_OBJECTAGG,
+    defineMethod(JSON_ARRAY, BuiltInMethod.JSON_ARRAY.method, NullPolicy.NONE);
+    defineMethod(JSON_TYPE, BuiltInMethod.JSON_TYPE.method, NullPolicy.NONE);
+    defineMethod(JSON_DEPTH, BuiltInMethod.JSON_DEPTH.method, NullPolicy.NONE);
+    defineMethod(JSON_PRETTY, BuiltInMethod.JSON_PRETTY.method, NullPolicy.NONE);
+    aggMap.put(JSON_OBJECTAGG.with(SqlJsonConstructorNullClause.ABSENT_ON_NULL),
         JsonObjectAggImplementor
             .supplierFor(BuiltInMethod.JSON_OBJECTAGG_ADD.method));
-    defineMethod(JSON_ARRAY, BuiltInMethod.JSON_ARRAY.method, NullPolicy.NONE);
-    aggMap.put(JSON_ARRAYAGG,
+    aggMap.put(JSON_OBJECTAGG.with(SqlJsonConstructorNullClause.NULL_ON_NULL),
+        JsonObjectAggImplementor
+            .supplierFor(BuiltInMethod.JSON_OBJECTAGG_ADD.method));
+    aggMap.put(JSON_ARRAYAGG.with(SqlJsonConstructorNullClause.ABSENT_ON_NULL),
+        JsonArrayAggImplementor
+            .supplierFor(BuiltInMethod.JSON_ARRAYAGG_ADD.method));
+    aggMap.put(JSON_ARRAYAGG.with(SqlJsonConstructorNullClause.NULL_ON_NULL),
         JsonArrayAggImplementor
             .supplierFor(BuiltInMethod.JSON_ARRAYAGG_ADD.method));
     defineImplementor(IS_JSON_VALUE, NullPolicy.NONE,
@@ -503,6 +520,9 @@ public class RexImpTable {
     aggMap.put(MIN, minMax);
     aggMap.put(MAX, minMax);
     aggMap.put(ANY_VALUE, minMax);
+    final Supplier<BitOpImplementor> bitop = constructorSupplier(BitOpImplementor.class);
+    aggMap.put(BIT_AND, bitop);
+    aggMap.put(BIT_OR, bitop);
     aggMap.put(SINGLE_VALUE, constructorSupplier(SingleValueImplementor.class));
     aggMap.put(COLLECT, constructorSupplier(CollectImplementor.class));
     aggMap.put(FUSION, constructorSupplier(FusionImplementor.class));
@@ -599,7 +619,10 @@ public class RexImpTable {
             + String.valueOf(call.getOperator());
         final RexCall call2 = call2(false, translator, call);
         switch (nullAs) {
-        case NOT_POSSIBLE: // Just foldAnd
+        case NOT_POSSIBLE:
+          // This doesn't mean that none of the arguments might be null, ex: (s and s is not null)
+          nullAs = NullAs.TRUE;
+          // fallthru
         case TRUE:
           // AND call should return false iff has FALSEs,
           // thus if we convert nulls to true then no harm is made
@@ -641,7 +664,10 @@ public class RexImpTable {
             + String.valueOf(call.getOperator());
         final RexCall call2 = call2(harmonize, translator, call);
         switch (nullAs) {
-        case NOT_POSSIBLE: // Just foldOr
+        case NOT_POSSIBLE:
+          // This doesn't mean that none of the arguments might be null, ex: (s or s is null)
+          nullAs = NullAs.FALSE;
+          // fallthru
         case TRUE:
           // This should return false iff all arguments are FALSE,
           // thus we convert nulls to TRUE and foldOr
@@ -1353,6 +1379,35 @@ public class RexImpTable {
               Expressions.call(add.accumulator().get(0),
                   BuiltInMethod.COLLECTION_ADDALL.method,
                   add.arguments().get(0))));
+    }
+  }
+
+  /** Implementor for the {@code BIT_AND} and {@code BIT_OR} aggregate function. */
+  static class BitOpImplementor extends StrictAggImplementor {
+    @Override protected void implementNotNullReset(AggContext info,
+        AggResetContext reset) {
+      Object initValue = info.aggregation() == BIT_AND ? -1 : 0;
+      Expression start = Expressions.constant(initValue, info.returnType());
+
+      reset.currentBlock().add(
+          Expressions.statement(
+              Expressions.assign(reset.accumulator().get(0), start)));
+    }
+
+    @Override public void implementNotNullAdd(AggContext info,
+        AggAddContext add) {
+      Expression acc = add.accumulator().get(0);
+      Expression arg = add.arguments().get(0);
+      SqlAggFunction aggregation = info.aggregation();
+      final Method method = (aggregation == BIT_AND
+          ? BuiltInMethod.BIT_AND
+          : BuiltInMethod.BIT_OR).method;
+      Expression next = Expressions.call(
+          method.getDeclaringClass(),
+          method.getName(),
+          acc,
+          Expressions.unbox(arg));
+      accAdvance(add, acc, next);
     }
   }
 
@@ -2183,8 +2238,8 @@ public class RexImpTable {
               Expressions.call(BuiltInMethod.TIME_ZONE.method, translator.getRoot()));
           // fall through
         case TIMESTAMP:
-          operand = Expressions.divide(operand,
-              Expressions.constant(TimeUnit.DAY.multiplier.longValue()));
+          operand = Expressions.call(BuiltInMethod.FLOOR_DIV.method,
+              operand, Expressions.constant(TimeUnit.DAY.multiplier.longValue()));
           // fall through
         case DATE:
           return Expressions.call(BuiltInMethod.UNIX_DATE_EXTRACT.method,
@@ -2194,11 +2249,9 @@ public class RexImpTable {
         }
         break;
       case MILLISECOND:
-        return Expressions.modulo(
-              operand, Expressions.constant(TimeUnit.MINUTE.multiplier.longValue()));
+        return mod(operand, TimeUnit.MINUTE.multiplier.longValue());
       case MICROSECOND:
-        operand = Expressions.modulo(
-              operand, Expressions.constant(TimeUnit.MINUTE.multiplier.longValue()));
+        operand = mod(operand, TimeUnit.MINUTE.multiplier.longValue());
         return Expressions.multiply(
               operand, Expressions.constant(TimeUnit.SECOND.multiplier.longValue()));
       case EPOCH:
@@ -2264,7 +2317,8 @@ public class RexImpTable {
     if (factor == 1L) {
       return operand;
     } else {
-      return Expressions.modulo(operand, Expressions.constant(factor));
+      return Expressions.call(BuiltInMethod.FLOOR_MOD.method,
+          operand, Expressions.constant(factor));
     }
   }
 
@@ -2535,6 +2589,12 @@ public class RexImpTable {
         RexToLixTranslator translator, RexCall call, NullAs nullAs) {
       List<RexNode> operands = call.getOperands();
       assert operands.size() == 1;
+      switch (nullAs) {
+      case IS_NOT_NULL:
+        return BOXED_TRUE_EXPR;
+      case IS_NULL:
+        return BOXED_FALSE_EXPR;
+      }
       if (seek == null) {
         return translator.translate(operands.get(0),
             negate ? NullAs.IS_NOT_NULL : NullAs.IS_NULL);

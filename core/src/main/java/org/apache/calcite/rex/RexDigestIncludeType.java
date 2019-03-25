@@ -14,22 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.util;
+package org.apache.calcite.rex;
 
 /**
- * ClosableAllocationOwner represents an object which can take ownership of
- * ClosableAllocations and guarantee that they will be cleaned up correctly when
- * its own closeAllocation() is called.
+ * Defines if type information should be printed for {@link RexLiteral}.
  */
-public interface ClosableAllocationOwner extends ClosableAllocation {
-  //~ Methods ----------------------------------------------------------------
-
-  /**
-   * Assigns ownership of a ClosableAllocation to this owner.
-   *
-   * @param allocation the ClosableAllocation to take over
-   */
-  void addAllocation(ClosableAllocation allocation);
+public enum RexDigestIncludeType {
+  ALWAYS,
+  OPTIONAL,
+  NO_TYPE;
 }
 
-// End ClosableAllocationOwner.java
+// End RexDigestIncludeType.java

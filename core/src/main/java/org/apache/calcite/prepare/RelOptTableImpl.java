@@ -49,6 +49,7 @@ import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.StreamableTable;
 import org.apache.calcite.schema.Table;
+import org.apache.calcite.schema.TemporalTable;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.Wrapper;
 import org.apache.calcite.sql.SqlAccessType;
@@ -327,19 +328,22 @@ public class RelOptTableImpl extends Prepare.AbstractPreparingTable {
     }
   }
 
+  @Override public boolean isTemporal() {
+    return table instanceof TemporalTable;
+  }
+
   public List<String> getQualifiedName() {
     return names;
   }
 
   public SqlMonotonicity getMonotonicity(String columnName) {
-    final int i = rowType.getFieldNames().indexOf(columnName);
-    if (i >= 0) {
-      for (RelCollation collation : table.getStatistic().getCollations()) {
-        final RelFieldCollation fieldCollation =
-            collation.getFieldCollations().get(0);
-        if (fieldCollation.getFieldIndex() == i) {
-          return fieldCollation.direction.monotonicity();
-        }
+    for (RelCollation collation : table.getStatistic().getCollations()) {
+      final RelFieldCollation fieldCollation =
+          collation.getFieldCollations().get(0);
+      final int fieldIndex = fieldCollation.getFieldIndex();
+      if (fieldIndex < rowType.getFieldCount()
+          && rowType.getFieldNames().get(fieldIndex).equals(columnName)) {
+        return fieldCollation.direction.monotonicity();
       }
     }
     return SqlMonotonicity.NOT_MONOTONIC;

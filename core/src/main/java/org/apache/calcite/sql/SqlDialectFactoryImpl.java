@@ -19,6 +19,7 @@ package org.apache.calcite.sql;
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.sql.dialect.AccessSqlDialect;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
+import org.apache.calcite.sql.dialect.BigQuerySqlDialect;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.dialect.Db2SqlDialect;
 import org.apache.calcite.sql.dialect.DerbySqlDialect;
@@ -41,6 +42,7 @@ import org.apache.calcite.sql.dialect.ParaccelSqlDialect;
 import org.apache.calcite.sql.dialect.PhoenixSqlDialect;
 import org.apache.calcite.sql.dialect.PostgresqlSqlDialect;
 import org.apache.calcite.sql.dialect.RedshiftSqlDialect;
+import org.apache.calcite.sql.dialect.SparkSqlDialect;
 import org.apache.calcite.sql.dialect.SybaseSqlDialect;
 import org.apache.calcite.sql.dialect.TeradataSqlDialect;
 import org.apache.calcite.sql.dialect.VerticaSqlDialect;
@@ -115,6 +117,8 @@ public class SqlDialectFactoryImpl implements SqlDialectFactory {
       return new MysqlSqlDialect(c);
     case "REDSHIFT":
       return new RedshiftSqlDialect(c);
+    case "SPARK":
+      return new SparkSqlDialect(c);
     }
     // Now the fuzzy matches.
     if (databaseProductName.startsWith("DB2")) {
@@ -143,6 +147,8 @@ public class SqlDialectFactoryImpl implements SqlDialectFactory {
       return new H2SqlDialect(c);
     } else if (upperProductName.contains("VERTICA")) {
       return new VerticaSqlDialect(c);
+    } else if (upperProductName.contains("SPARK")) {
+      return new SparkSqlDialect(c);
     } else {
       return new AnsiSqlDialect(c);
     }
@@ -179,6 +185,8 @@ public class SqlDialectFactoryImpl implements SqlDialectFactory {
     switch (databaseProduct) {
     case ACCESS:
       return AccessSqlDialect.DEFAULT;
+    case BIG_QUERY:
+      return BigQuerySqlDialect.DEFAULT;
     case CALCITE:
       return CalciteSqlDialect.DEFAULT;
     case DB2:
@@ -229,6 +237,8 @@ public class SqlDialectFactoryImpl implements SqlDialectFactory {
       return TeradataSqlDialect.DEFAULT;
     case VERTICA:
       return VerticaSqlDialect.DEFAULT;
+    case SPARK:
+      return SparkSqlDialect.DEFAULT;
     case SQLSTREAM:
     case UNKNOWN:
     default:

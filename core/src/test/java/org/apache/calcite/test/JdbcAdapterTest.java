@@ -19,6 +19,7 @@ package org.apache.calcite.test;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.test.CalciteAssert.AssertThat;
 import org.apache.calcite.test.CalciteAssert.DatabaseInstance;
+import org.apache.calcite.util.TestUtil;
 
 import org.hsqldb.jdbcDriver;
 import org.junit.Test;
@@ -438,6 +439,34 @@ public class JdbcAdapterTest {
             + "FROM \"foodmart\".\"expense_fact\"");
   }
 
+  @Test public void testTablesNoCatalogSchema() {
+    final String model =
+        JdbcTest.FOODMART_MODEL
+            .replace("jdbcCatalog: 'foodmart'", "jdbcCatalog: null")
+            .replace("jdbcSchema: 'foodmart'", "jdbcSchema: null");
+    // Since Calcite uses PostgreSQL JDBC driver version >= 4.1,
+    // catalog/schema can be retrieved from JDBC connection and
+    // this test succeeds
+    CalciteAssert.model(model)
+        // Calcite uses PostgreSQL JDBC driver version >= 4.1
+        .enable(CalciteAssert.DB == DatabaseInstance.POSTGRESQL)
+        .query("select \"store_id\", \"account_id\", \"exp_date\","
+            + " \"time_id\", \"category_id\", \"currency_id\", \"amount\","
+            + " last_value(\"time_id\") over ()"
+            + " as \"last_version\" from \"expense_fact\"")
+        .runs();
+    // Since Calcite uses HSQLDB JDBC driver version < 4.1,
+    // catalog/schema cannot be retrieved from JDBC connection and
+    // this test fails
+    CalciteAssert.model(model)
+        .enable(CalciteAssert.DB == DatabaseInstance.HSQLDB)
+        .query("select \"store_id\", \"account_id\", \"exp_date\","
+            + " \"time_id\", \"category_id\", \"currency_id\", \"amount\","
+            + " last_value(\"time_id\") over ()"
+            + " as \"last_version\" from \"expense_fact\"")
+        .throws_("'expense_fact' not found");
+  }
+
   /** Test case for
    * <a href="https://issues.apache.org/jira/browse/CALCITE-1506">[CALCITE-1506]
    * Push OVER Clause to underlying SQL via JDBC adapter</a>.
@@ -624,7 +653,7 @@ public class JdbcAdapterTest {
                 connection.getMetaData().getTables(null, null, "%", null);
             assertFalse(CalciteAssert.toString(resultSet).isEmpty());
           } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw TestUtil.rethrow(e);
           }
         });
   }
@@ -718,7 +747,7 @@ public class JdbcAdapterTest {
             .explainContains(explain)
             .planUpdateHasSql(jdbcSql, 1);
       } catch (SQLException e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     });
   }
@@ -750,7 +779,7 @@ public class JdbcAdapterTest {
             .explainContains(explain)
             .planUpdateHasSql(jdbcSql, 2);
       } catch (SQLException e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     });
   }
@@ -787,7 +816,7 @@ public class JdbcAdapterTest {
             .explainContains(explain)
             .planUpdateHasSql(jdbcSql, 1);
       } catch (SQLException e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     });
   }
@@ -815,7 +844,7 @@ public class JdbcAdapterTest {
             .planUpdateHasSql(jdbcSql, 1);
         return null;
       } catch (SQLException e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     });
   }
@@ -839,7 +868,7 @@ public class JdbcAdapterTest {
             .explainContains(explain)
             .planUpdateHasSql(jdbcSql, 1);
       } catch (SQLException e) {
-        throw new RuntimeException(e);
+        throw TestUtil.rethrow(e);
       }
     });
   }

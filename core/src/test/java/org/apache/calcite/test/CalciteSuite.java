@@ -34,10 +34,13 @@ import org.apache.calcite.prepare.LookupOperatorOverloadsTest;
 import org.apache.calcite.profile.ProfilerTest;
 import org.apache.calcite.rel.RelCollationTest;
 import org.apache.calcite.rel.RelDistributionTest;
+import org.apache.calcite.rel.rel2sql.RelToSqlConverterStructsTest;
 import org.apache.calcite.rel.rel2sql.RelToSqlConverterTest;
 import org.apache.calcite.rel.rules.DateRangeRulesTest;
+import org.apache.calcite.rel.rules.SortRemoveRuleTest;
 import org.apache.calcite.rex.RexBuilderTest;
 import org.apache.calcite.rex.RexExecutorTest;
+import org.apache.calcite.rex.RexSqlStandardConvertletTableTest;
 import org.apache.calcite.runtime.BinarySearchTest;
 import org.apache.calcite.runtime.EnumerablesTest;
 import org.apache.calcite.sql.SqlSetOptionOperatorTest;
@@ -51,6 +54,7 @@ import org.apache.calcite.sql.test.SqlTypeNameTest;
 import org.apache.calcite.sql.type.SqlTypeFactoryTest;
 import org.apache.calcite.sql.type.SqlTypeUtilTest;
 import org.apache.calcite.sql.validate.LexCaseSensitiveTest;
+import org.apache.calcite.sql.validate.LexEscapeTest;
 import org.apache.calcite.sql.validate.SqlValidatorUtilTest;
 import org.apache.calcite.test.enumerable.EnumerableCorrelateTest;
 import org.apache.calcite.test.fuzzer.RexProgramFuzzyTest;
@@ -122,6 +126,7 @@ import org.junit.runners.Suite;
     InduceGroupingTypeTest.class,
     RelOptPlanReaderTest.class,
     RexBuilderTest.class,
+    RexSqlStandardConvertletTableTest.class,
     SqlTypeFactoryTest.class,
     SqlTypeUtilTest.class,
     SqlValidatorUtilTest.class,
@@ -138,20 +143,19 @@ import org.junit.runners.Suite;
     SqlAdvisorTest.class,
     RelMetadataTest.class,
     DateRangeRulesTest.class,
-    RelOptRulesTest.class,
     ScannableTableTest.class,
     RexExecutorTest.class,
     SqlLimitsTest.class,
     JdbcFrontLinqBackTest.class,
-    JdbcFrontJdbcBackTest.class,
-    SqlToRelConverterTest.class,
     RelToSqlConverterTest.class,
+    RelToSqlConverterStructsTest.class,
     SqlOperatorTest.class,
     ChunkListTest.class,
     FrameworksTest.class,
     EnumerableCorrelateTest.class,
     LookupOperatorOverloadsTest.class,
     LexCaseSensitiveTest.class,
+    LexEscapeTest.class,
     CollationConversionTest.class,
     TraitConversionTest.class,
     ComboRuleTest.class,
@@ -165,21 +169,26 @@ import org.junit.runners.Suite;
     RelBuilderTest.class,
     PigRelBuilderTest.class,
     RexImplicationCheckerTest.class,
-    MaterializationTest.class,
     JdbcAdapterTest.class,
     LinqFrontJdbcBackTest.class,
     JdbcFrontJdbcBackLinqMiddleTest.class,
-    CalciteSqlOperatorTest.class,
     RexProgramFuzzyTest.class,
+    SqlToRelConverterTest.class,
     ProfilerTest.class,
-    LatticeSuggesterTest.class,
-    LatticeTest.class,
-    ReflectiveSchemaTest.class,
     SqlAdvisorJdbcTest.class,
-    JdbcTest.class,
     CoreQuidemTest.class,
     CalciteRemoteDriverTest.class,
     StreamTest.class,
+    SortRemoveRuleTest.class,
+
+    // above 10sec
+    JdbcFrontJdbcBackTest.class,
+
+    // above 20sec
+    JdbcTest.class,
+    CalciteSqlOperatorTest.class,
+    ReflectiveSchemaTest.class,
+    RelOptRulesTest.class,
 
     // test cases
     TableInRootSchemaTest.class,
@@ -191,6 +200,13 @@ import org.junit.runners.Suite;
     // slow tests that don't break often
     SqlToRelConverterExtendedTest.class,
     PartiallyOrderedSetTest.class,
+
+    // above 30sec
+    LatticeSuggesterTest.class,
+    MaterializationTest.class,
+
+    // above 120sec
+    LatticeTest.class,
 
     // system tests and benchmarks (very slow, but usually only run if
     // '-Dcalcite.test.slow' is specified)

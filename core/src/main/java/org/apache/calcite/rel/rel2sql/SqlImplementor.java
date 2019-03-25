@@ -70,7 +70,6 @@ import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
-import org.apache.calcite.util.Util;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -663,11 +662,6 @@ public abstract class SqlImplementor {
       final SqlLiteral isRows =
           SqlLiteral.createBoolean(rexWindow.isRows(), POS);
 
-      final SqlNode lowerBound =
-          createSqlWindowBound(rexWindow.getLowerBound());
-      final SqlNode upperBound =
-          createSqlWindowBound(rexWindow.getUpperBound());
-
       // null defaults to true.
       // During parsing the allowPartial == false (e.g. disallow partial)
       // is expand into CASE expression and is handled as a such.
@@ -675,11 +669,21 @@ public abstract class SqlImplementor {
       // "disallow partial" and set the allowPartial = false.
       final SqlLiteral allowPartial = null;
 
+      SqlAggFunction sqlAggregateFunction = rexOver.getAggOperator();
+
+      SqlNode lowerBound = null;
+      SqlNode upperBound = null;
+
+      if (sqlAggregateFunction.allowsFraming()) {
+        lowerBound = createSqlWindowBound(rexWindow.getLowerBound());
+        upperBound = createSqlWindowBound(rexWindow.getUpperBound());
+      }
+
       final SqlWindow sqlWindow = SqlWindow.create(null, null, partitionList,
           orderList, isRows, lowerBound, upperBound, allowPartial, POS);
 
       final List<SqlNode> nodeList = toSql(program, rexOver.getOperands());
-      return createOverCall(rexOver.getAggOperator(), nodeList, sqlWindow);
+      return createOverCall(sqlAggregateFunction, nodeList, sqlWindow);
     }
 
     private SqlCall createOverCall(SqlAggFunction op, List<SqlNode> operands,
@@ -743,13 +747,11 @@ public abstract class SqlImplementor {
     }
 
     private SqlNode createLeftCall(SqlOperator op, List<SqlNode> nodeList) {
-      if (nodeList.size() == 2) {
-        return op.createCall(new SqlNodeList(nodeList, POS));
+      SqlNode node = op.createCall(new SqlNodeList(nodeList.subList(0, 2), POS));
+      for (int i = 2; i < nodeList.size(); i++) {
+        node = op.createCall(new SqlNodeList(ImmutableList.of(node, nodeList.get(i)), POS));
       }
-      final List<SqlNode> butLast = Util.skipLast(nodeList);
-      final SqlNode last = nodeList.get(nodeList.size() - 1);
-      final SqlNode call = createLeftCall(op, butLast);
-      return op.createCall(new SqlNodeList(ImmutableList.of(call, last), POS));
+      return node;
     }
 
     private List<SqlNode> toSql(RexProgram program, List<RexNode> operandList) {

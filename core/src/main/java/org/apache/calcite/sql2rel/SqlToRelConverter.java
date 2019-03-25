@@ -46,6 +46,7 @@ import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.core.Sample;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.core.Uncollect;
 import org.apache.calcite.rel.core.Values;
 import org.apache.calcite.rel.logical.LogicalAggregate;
@@ -123,6 +124,7 @@ import org.apache.calcite.sql.SqlSampleSpec;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSelectKeyword;
 import org.apache.calcite.sql.SqlSetOperator;
+import org.apache.calcite.sql.SqlSnapshot;
 import org.apache.calcite.sql.SqlUnnestOperator;
 import org.apache.calcite.sql.SqlUpdate;
 import org.apache.calcite.sql.SqlUtil;
@@ -773,6 +775,9 @@ public class SqlToRelConverter {
   /**
    * Converts a query's ORDER BY clause, if any.
    *
+   * <p>Ignores the ORDER BY clause if the query is not top-level and FETCH or
+   * OFFSET are not present.
+   *
    * @param select        Query
    * @param bb            Blackboard
    * @param collation     Collation list
@@ -789,9 +794,10 @@ public class SqlToRelConverter {
       List<SqlNode> orderExprList,
       SqlNode offset,
       SqlNode fetch) {
-    if (select.getOrderList() == null
+    if (!bb.top
+        || select.getOrderList() == null
         || select.getOrderList().getList().isEmpty()) {
-      assert collation.getFieldCollations().isEmpty();
+      assert !bb.top || collation.getFieldCollations().isEmpty();
       if ((offset == null
             || (offset instanceof SqlLiteral
                 && ((SqlLiteral) offset).bigDecimalValue().equals(BigDecimal.ZERO)))
@@ -2012,6 +2018,10 @@ public class SqlToRelConverter {
       convertIdentifier(bb, id, extendedColumns);
       return;
 
+    case SNAPSHOT:
+      snapshotTemporalTable(bb, (SqlCall) from);
+      return;
+
     case JOIN:
       final SqlJoin join = (SqlJoin) from;
       final SqlValidatorScope scope = validator.getJoinScope(from);
@@ -2375,6 +2385,20 @@ public class SqlToRelConverter {
       SqlToRelConverter.Blackboard bb,
       SqlCall call,
       LogicalTableFunctionScan callRel) {
+  }
+
+  private void snapshotTemporalTable(Blackboard bb, SqlCall call) {
+    final SqlSnapshot snapshot = (SqlSnapshot) call;
+    final RexNode period = bb.convertExpression(snapshot.getPeriod());
+
+    // convert inner query, could be a table name or a derived table
+    SqlNode expr = snapshot.getTableRef();
+    convertFrom(bb, expr);
+    final TableScan scan = (TableScan) bb.root;
+
+    final RelNode snapshotRel = relBuilder.push(scan).snapshot(period).build();
+
+    bb.setRoot(snapshotRel, false);
   }
 
   private Set<RelColumnMapping> getColumnMappings(SqlOperator op) {
@@ -2944,6 +2968,18 @@ public class SqlToRelConverter {
     if (orderList == null) {
       return;
     }
+
+    if (!bb.top) {
+      SqlNode offset = select.getOffset();
+      if ((offset == null
+              || (offset instanceof SqlLiteral
+                  && ((SqlLiteral) offset).bigDecimalValue()
+                      .equals(BigDecimal.ZERO)))
+          && select.getFetch() == null) {
+        return;
+      }
+    }
+
     for (SqlNode orderItem : orderList) {
       collationList.add(
           convertOrderItem(select, orderItem, extraOrderExprs,

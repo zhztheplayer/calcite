@@ -73,7 +73,7 @@ final class ElasticsearchJson {
         rows.computeIfAbsent(r, ignore -> new ArrayList<>()).add(v);
     aggregations.forEach(a -> visitValueNodes(a, new ArrayList<>(), cons));
     rows.forEach((k, v) -> {
-      if (v.stream().anyMatch(val -> val instanceof GroupValue)) {
+      if (v.stream().allMatch(val -> val instanceof GroupValue)) {
         v.forEach(tuple -> {
           Map<String, Object> groupRow = new LinkedHashMap<>(k.keys);
           groupRow.put(tuple.getName(), tuple.value());
@@ -276,12 +276,16 @@ final class ElasticsearchJson {
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
   static class SearchHit {
+
+    /**
+     * ID of the document (not available in aggregations)
+     */
     private final String id;
     private final Map<String, Object> source;
     private final Map<String, Object> fields;
 
     @JsonCreator
-    SearchHit(@JsonProperty("_id") final String id,
+    SearchHit(@JsonProperty(ElasticsearchConstants.ID) final String id,
                       @JsonProperty("_source") final Map<String, Object> source,
                       @JsonProperty("fields") final Map<String, Object> fields) {
       this.id = Objects.requireNonNull(id, "id");
@@ -314,6 +318,12 @@ final class ElasticsearchJson {
 
     Object valueOrNull(String name) {
       Objects.requireNonNull(name, "name");
+
+      // for "select *" return whole document
+      if (ElasticsearchConstants.isSelectAll(name)) {
+        return sourceOrFields();
+      }
+
       if (fields != null && fields.containsKey(name)) {
         Object field = fields.get(name);
         if (field instanceof Iterable) {

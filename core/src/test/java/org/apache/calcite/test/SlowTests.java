@@ -14,19 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.util;
+package org.apache.calcite.test;
 
 /**
- * ClosableAllocation represents an object which requires a call in order to
- * release resources early rather than waiting for finalization.
+ * Declares a JUnit category for slow tests to speedup CI.
  */
-public interface ClosableAllocation {
-  //~ Methods ----------------------------------------------------------------
-
-  /**
-   * Closes this object.
-   */
-  void closeAllocation();
+public interface SlowTests {
 }
 
-// End ClosableAllocation.java
+// End SlowTests.java

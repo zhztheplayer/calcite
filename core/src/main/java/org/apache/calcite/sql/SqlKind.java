@@ -118,6 +118,11 @@ public enum SqlKind {
   OTHER_FUNCTION,
 
   /**
+   * POSITION Function
+   */
+  POSITION,
+
+  /**
    * EXPLAIN statement
    */
   EXPLAIN,
@@ -236,6 +241,12 @@ public enum SqlKind {
    * MATCH_RECOGNIZE clause
    */
   MATCH_RECOGNIZE,
+
+  /**
+   * SNAPSHOT operator
+   */
+  SNAPSHOT,
+
   // binary operators
 
   /**
@@ -919,6 +930,12 @@ public enum SqlKind {
   /** The {@code SINGLE_VALUE} aggregate function. */
   SINGLE_VALUE,
 
+  /** The {@code BIT_AND} aggregate function. */
+  BIT_AND,
+
+  /** The {@code BIT_OR} aggregate function. */
+  BIT_OR,
+
   /** The {@code ROW_NUMBER} window function. */
   ROW_NUMBER,
 
@@ -1098,7 +1115,7 @@ public enum SqlKind {
           LAST_VALUE, COVAR_POP, COVAR_SAMP, REGR_COUNT, REGR_SXX, REGR_SYY,
           AVG, STDDEV_POP, STDDEV_SAMP, VAR_POP, VAR_SAMP, NTILE, COLLECT,
           FUSION, SINGLE_VALUE, ROW_NUMBER, RANK, PERCENT_RANK, DENSE_RANK,
-          CUME_DIST, JSON_ARRAYAGG, JSON_OBJECTAGG);
+          CUME_DIST, JSON_ARRAYAGG, JSON_OBJECTAGG, BIT_AND, BIT_OR);
 
   /**
    * Category consisting of all DML operators.
@@ -1178,7 +1195,7 @@ public enum SqlKind {
               EnumSet.of(AS, ARGUMENT_ASSIGNMENT, DEFAULT,
                   RUNNING, FINAL, LAST, FIRST, PREV, NEXT,
                   DESCENDING, CUBE, ROLLUP, GROUPING_SETS, EXTEND, LATERAL,
-                  SELECT, JOIN, OTHER_FUNCTION, CAST, TRIM, FLOOR, CEIL,
+                  SELECT, JOIN, OTHER_FUNCTION, POSITION, CAST, TRIM, FLOOR, CEIL,
                   TIMESTAMP_ADD, TIMESTAMP_DIFF, EXTRACT,
                   LITERAL_CHAIN, JDBC_FN, PRECEDING, FOLLOWING, ORDER_BY,
                   NULLS_FIRST, NULLS_LAST, COLLECTION_TABLE, TABLESAMPLE,
@@ -1200,7 +1217,7 @@ public enum SqlKind {
    * functions {@link #ROW}, {@link #TRIM}, {@link #CAST}, {@link #JDBC_FN}.
    */
   public static final Set<SqlKind> FUNCTION =
-      EnumSet.of(OTHER_FUNCTION, ROW, TRIM, LTRIM, RTRIM, CAST, JDBC_FN);
+      EnumSet.of(OTHER_FUNCTION, ROW, TRIM, LTRIM, RTRIM, CAST, JDBC_FN, POSITION);
 
   /**
    * Category of SqlAvgAggFunction.

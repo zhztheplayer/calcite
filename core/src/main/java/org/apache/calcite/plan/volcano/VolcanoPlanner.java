@@ -18,6 +18,7 @@ package org.apache.calcite.plan.volcano;
 
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.calcite.config.CalciteSystemProperty;
 import org.apache.calcite.linq4j.tree.Expressions;
 import org.apache.calcite.plan.AbstractRelOptPlanner;
 import org.apache.calcite.plan.Context;
@@ -39,11 +40,11 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.prepare.CalcitePrepareImpl;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.convert.Converter;
 import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -58,12 +59,11 @@ import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.rules.SemiJoinRule;
 import org.apache.calcite.rel.rules.SortRemoveRule;
 import org.apache.calcite.rel.rules.UnionToDistinctRule;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.util.Litmus;
 import org.apache.calcite.util.Pair;
-import org.apache.calcite.util.SaffronProperties;
+import org.apache.calcite.util.PartiallyOrderedSet;
 import org.apache.calcite.util.Util;
 
 import com.google.common.collect.ImmutableList;
@@ -77,6 +77,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -97,8 +98,6 @@ import java.util.regex.Pattern;
  * according to a dynamic programming algorithm.
  */
 public class VolcanoPlanner extends AbstractRelOptPlanner {
-  //~ Static fields/initializers ---------------------------------------------
-
   protected static final double COST_IMPROVEMENT = .5;
 
   //~ Instance fields --------------------------------------------------------
@@ -153,7 +152,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
    * {@code Project(child=rel#1, a=null)} where a is a null INTEGER or a
    * null VARCHAR(10).
    */
-  private final Map<Pair<String, RelDataType>, RelNode> mapDigestToRel =
+  private final Map<String, RelNode> mapDigestToRel =
       new HashMap<>();
 
   /**
@@ -214,18 +213,17 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
    */
   RelOptListener listener;
 
-  /**
-   * Dump of the root relational expression, as it was before any rules were
-   * applied. For debugging.
-   */
-  private String originalRootString;
-
   private RelNode originalRoot;
 
   /**
    * Whether the planner can accept new rules.
    */
   private boolean locked;
+
+  /**
+   * Whether rels with Convention.NONE has infinite cost.
+   */
+  private boolean noneConventionHasInfiniteCost = true;
 
   private final List<RelOptMaterialization> materializations =
       new ArrayList<>();
@@ -238,7 +236,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
 
   final Map<RelNode, Provenance> provenanceMap = new HashMap<>();
 
-  private final Deque<VolcanoRuleCall> ruleCallStack = new ArrayDeque<>();
+  final Deque<VolcanoRuleCall> ruleCallStack = new ArrayDeque<>();
 
   /** Zero cost, according to {@link #costFactory}. Not necessarily a
    * {@link org.apache.calcite.plan.volcano.VolcanoCost}. */
@@ -306,8 +304,6 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     if (this.originalRoot == null) {
       this.originalRoot = rel;
     }
-    this.originalRootString =
-        RelOptUtil.toString(root, SqlExplainLevel.ALL_ATTRIBUTES);
 
     // Making a node the root changes its importance.
     this.ruleQueue.recompute(this.root);
@@ -909,7 +905,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     addRule(JoinCommuteRule.INSTANCE);
     addRule(SemiJoinRule.PROJECT);
     addRule(SemiJoinRule.JOIN);
-    if (CalcitePrepareImpl.COMMUTE) {
+    if (CalciteSystemProperty.COMMUTE.value()) {
       addRule(JoinAssociateRule.INSTANCE);
     }
     addRule(AggregateRemoveRule.INSTANCE);
@@ -933,13 +929,22 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     }
   }
 
+  /**
+   * Sets whether this planner should consider rel nodes with Convention.NONE
+   * to have inifinte cost or not.
+   * @param infinite Whether to make none convention rel nodes inifite cost
+   */
+  public void setNoneConventionHasInfiniteCost(boolean infinite) {
+    this.noneConventionHasInfiniteCost = infinite;
+  }
+
   public RelOptCost getCost(RelNode rel, RelMetadataQuery mq) {
     assert rel != null : "pre-condition: rel != null";
     if (rel instanceof RelSubset) {
       return ((RelSubset) rel).bestCost;
     }
-    if (rel.getTraitSet().getTrait(ConventionTraitDef.INSTANCE)
-        == Convention.NONE) {
+    if (noneConventionHasInfiniteCost
+        && rel.getTraitSet().getTrait(ConventionTraitDef.INSTANCE) == Convention.NONE) {
       return costFactory.makeInfiniteCost();
     }
     RelOptCost cost = mq.getNonCumulativeCost(rel);
@@ -1000,7 +1005,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     assert fromTraits.size() >= toTraits.size();
 
     final boolean allowInfiniteCostConverters =
-        SaffronProperties.INSTANCE.allowInfiniteCostConverters().get();
+        CalciteSystemProperty.ALLOW_INFINITE_COST_CONVERTERS.value();
 
     // Traits may build on top of another...for example a collation trait
     // would typically come after a distribution trait since distribution
@@ -1158,8 +1163,32 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
   public void dump(PrintWriter pw) {
     pw.println("Root: " + root.getDescription());
     pw.println("Original rel:");
-    pw.println(originalRootString);
-    pw.println("Sets:");
+
+    if (originalRoot != null) {
+      originalRoot.explain(
+          new RelWriterImpl(pw, SqlExplainLevel.ALL_ATTRIBUTES, false));
+    }
+    if (CalciteSystemProperty.DUMP_SETS.value()) {
+      pw.println();
+      pw.println("Sets:");
+      dumpSets(pw);
+    }
+    if (CalciteSystemProperty.DUMP_GRAPHVIZ.value()) {
+      pw.println();
+      pw.println("Graphviz:");
+      dumpGraphviz(pw);
+    }
+  }
+
+  public String toDot() {
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);
+    dumpGraphviz(pw);
+    pw.flush();
+    return sw.toString();
+  }
+
+  private void dumpSets(PrintWriter pw) {
     Ordering<RelSet> ordering = Ordering.from(Comparator.comparingInt(o -> o.id));
     for (RelSet set : ordering.immutableSortedCopy(allSets)) {
       pw.println("Set#" + set.id
@@ -1207,12 +1236,178 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
         }
       }
     }
-    pw.println();
   }
 
-  /** Computes the key for {@link #mapDigestToRel}. */
-  private static Pair<String, RelDataType> key(RelNode rel) {
-    return Pair.of(rel.getDigest(), rel.getRowType());
+  private void dumpGraphviz(PrintWriter pw) {
+    Ordering<RelSet> ordering = Ordering.from(Comparator.comparingInt(o -> o.id));
+    Set<RelNode> activeRels = new HashSet<>();
+    for (VolcanoRuleCall volcanoRuleCall : ruleCallStack) {
+      activeRels.addAll(Arrays.asList(volcanoRuleCall.rels));
+    }
+    pw.println("digraph G {");
+    pw.println("\troot [style=filled,label=\"Root\"];");
+    PartiallyOrderedSet<RelSubset> subsetPoset = new PartiallyOrderedSet<>(
+        (e1, e2) -> e1.getTraitSet().satisfies(e2.getTraitSet()));
+    Set<RelSubset> nonEmptySubsets = new HashSet<>();
+    for (RelSet set : ordering.immutableSortedCopy(allSets)) {
+      pw.print("\tsubgraph cluster");
+      pw.print(set.id);
+      pw.println("{");
+      pw.print("\t\tlabel=");
+      Util.printJavaString(pw, "Set " + set.id + " " + set.subsets.get(0).getRowType(), false);
+      pw.print(";\n");
+      for (RelNode rel : set.rels) {
+        pw.print("\t\trel");
+        pw.print(rel.getId());
+        pw.print(" [label=");
+        RelMetadataQuery mq = rel.getCluster().getMetadataQuery();
+
+        // Note: rel traitset could be different from its subset.traitset
+        // It can happen due to RelTraitset#simplify
+        // If the traits are different, we want to keep them on a graph
+        String traits = "." + getSubset(rel).getTraitSet().toString();
+        String title = rel.getDescription().replace(traits, "");
+        if (title.endsWith(")")) {
+          int openParen = title.indexOf('(');
+          if (openParen != -1) {
+            // Title is like rel#12:LogicalJoin(left=RelSubset#4,right=RelSubset#3,
+            // condition==($2, $0),joinType=inner)
+            // so we remove the parenthesis, and wrap parameters to the second line
+            // This avoids "too wide" Graphiz boxes, and makes the graph easier to follow
+            title = title.substring(0, openParen) + '\n'
+                + title.substring(openParen + 1, title.length() - 1);
+          }
+        }
+        Util.printJavaString(pw,
+            title
+                + "\nrows=" + mq.getRowCount(rel) + ", cost=" + getCost(rel, mq), false);
+        RelSubset relSubset = getSubset(rel);
+        if (!(rel instanceof AbstractConverter)) {
+          nonEmptySubsets.add(relSubset);
+        }
+        if (relSubset.best == rel) {
+          pw.print(",color=blue");
+        }
+        if (activeRels.contains(rel)) {
+          pw.print(",style=dashed");
+        }
+        pw.print(",shape=box");
+        pw.println("]");
+      }
+
+      subsetPoset.clear();
+      for (RelSubset subset : set.subsets) {
+        subsetPoset.add(subset);
+        pw.print("\t\tsubset");
+        pw.print(subset.getId());
+        pw.print(" [label=");
+        Util.printJavaString(pw, subset.getDescription(), false);
+        boolean empty = !nonEmptySubsets.contains(subset);
+        if (empty) {
+          // We don't want to iterate over rels when we know the set is not empty
+          for (RelNode rel : subset.getRels()) {
+            if (!(rel instanceof AbstractConverter)) {
+              empty = false;
+              break;
+            }
+          }
+          if (empty) {
+            pw.print(",color=red");
+          }
+        }
+        if (activeRels.contains(subset)) {
+          pw.print(",style=dashed");
+        }
+        pw.print("]\n");
+      }
+
+      for (RelSubset subset : subsetPoset) {
+        for (RelSubset parent : subsetPoset.getChildren(subset)) {
+          pw.print("\t\tsubset");
+          pw.print(subset.getId());
+          pw.print(" -> subset");
+          pw.print(parent.getId());
+          pw.print(";");
+        }
+      }
+
+      pw.print("\t}\n");
+    }
+    // Note: it is important that all the links are declared AFTER declaration of the nodes
+    // Otherwise Graphviz creates nodes implicitly, and puts them into a wrong cluster
+    pw.print("\troot -> subset");
+    pw.print(root.getId());
+    pw.println(";");
+    for (RelSet set : ordering.immutableSortedCopy(allSets)) {
+      for (RelNode rel : set.rels) {
+        RelSubset relSubset = getSubset(rel);
+        pw.print("\tsubset");
+        pw.print(relSubset.getId());
+        pw.print(" -> rel");
+        pw.print(rel.getId());
+        if (relSubset.best == rel) {
+          pw.print("[color=blue]");
+        }
+        pw.print(";");
+        List<RelNode> inputs = rel.getInputs();
+        for (int i = 0; i < inputs.size(); i++) {
+          RelNode input = inputs.get(i);
+          pw.print(" rel");
+          pw.print(rel.getId());
+          pw.print(" -> ");
+          pw.print(input instanceof RelSubset ? "subset" : "rel");
+          pw.print(input.getId());
+          if (relSubset.best == rel || inputs.size() > 1) {
+            char sep = '[';
+            if (relSubset.best == rel) {
+              pw.print(sep);
+              pw.print("color=blue");
+              sep = ',';
+            }
+            if (inputs.size() > 1) {
+              pw.print(sep);
+              pw.print("label=\"");
+              pw.print(i);
+              pw.print("\"");
+              // sep = ',';
+            }
+            pw.print(']');
+          }
+          pw.print(";");
+        }
+        pw.println();
+      }
+    }
+
+    // Draw lines for current rules
+    for (VolcanoRuleCall ruleCall : ruleCallStack) {
+      pw.print("rule");
+      pw.print(ruleCall.id);
+      pw.print(" [style=dashed,label=");
+      Util.printJavaString(pw, ruleCall.rule.toString(), false);
+      pw.print("]");
+
+      RelNode[] rels = ruleCall.rels;
+      for (int i = 0; i < rels.length; i++) {
+        RelNode rel = rels[i];
+        pw.print(" rule");
+        pw.print(ruleCall.id);
+        pw.print(" -> ");
+        pw.print(rel instanceof RelSubset ? "subset" : "rel");
+        pw.print(rel.getId());
+        pw.print(" [style=dashed");
+        if (rels.length > 1) {
+          pw.print(",label=\"");
+          pw.print(i);
+          pw.print("\"");
+        }
+        pw.print("]");
+        pw.print(";");
+      }
+      pw.println();
+    }
+
+    pw.print("}");
   }
 
   /**
@@ -1227,14 +1422,11 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
   void rename(RelNode rel) {
     final String oldDigest = rel.getDigest();
     if (fixUpInputs(rel)) {
-      final Pair<String, RelDataType> oldKey =
-          Pair.of(oldDigest, rel.getRowType());
-      final RelNode removed = mapDigestToRel.remove(oldKey);
+      final RelNode removed = mapDigestToRel.remove(oldDigest);
       assert removed == rel;
       final String newDigest = rel.recomputeDigest();
       LOGGER.trace("Rename #{} from '{}' to '{}'", rel.getId(), oldDigest, newDigest);
-      final Pair<String, RelDataType> key = key(rel);
-      final RelNode equivRel = mapDigestToRel.put(key, rel);
+      final RelNode equivRel = mapDigestToRel.put(newDigest, rel);
       if (equivRel != null) {
         assert equivRel != rel;
 
@@ -1242,7 +1434,15 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
         // just knocked it out. Put it back, and forget about 'rel'.
         LOGGER.trace("After renaming rel#{} it is now equivalent to rel#{}",
             rel.getId(), equivRel.getId());
-        mapDigestToRel.put(key, equivRel);
+
+        assert RelOptUtil.equal(
+            "rel rowtype",
+            rel.getRowType(),
+            "equivRel rowtype",
+            equivRel.getRowType(),
+            Litmus.THROW);
+
+        mapDigestToRel.put(newDigest, equivRel);
 
         RelSubset equivRelSubset = getSubset(equivRel);
         ruleQueue.recompute(equivRelSubset, true);
@@ -1285,11 +1485,16 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     // Is there an equivalent relational expression? (This might have
     // just occurred because the relational expression's child was just
     // found to be equivalent to another set.)
-    final Pair<String, RelDataType> key = key(rel);
-    RelNode equivRel = mapDigestToRel.get(key);
+    RelNode equivRel = mapDigestToRel.get(rel.getDigest());
     if (equivRel != null && equivRel != rel) {
       assert equivRel.getClass() == rel.getClass();
       assert equivRel.getTraitSet().equals(rel.getTraitSet());
+      assert RelOptUtil.equal(
+          "rel rowtype",
+          rel.getRowType(),
+          "equivRel rowtype",
+          equivRel.getRowType(),
+          Litmus.THROW);
 
       RelSubset equivRelSubset = getSubset(equivRel);
       ruleQueue.recompute(equivRelSubset, true);
@@ -1490,7 +1695,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
 
     // If it is equivalent to an existing expression, return the set that
     // the equivalent expression belongs to.
-    Pair<String, RelDataType> key = key(rel);
+    String key = rel.getDigest();
     RelNode equivExp = mapDigestToRel.get(key);
     if (equivExp == null) {
       // do nothing
@@ -1528,9 +1733,16 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
         // expression.
         if (fixUpInputs(rel)) {
           rel.recomputeDigest();
-          key = key(rel);
+          key = rel.getDigest();
           RelNode equivRel = mapDigestToRel.get(key);
           if ((equivRel != rel) && (equivRel != null)) {
+            assert RelOptUtil.equal(
+                "rel rowtype",
+                rel.getRowType(),
+                "equivRel rowtype",
+                equivRel.getRowType(),
+                Litmus.THROW);
+
             // make sure this bad rel didn't get into the
             // set in any way (fixupInputs will do this but it
             // doesn't know if it should so it does it anyway)
@@ -1743,9 +1955,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
       RelNode rel,
       RelNode equivRel,
       VolcanoRuleCall ruleCall) {
-    ruleCallStack.push(ruleCall);
     ensureRegistered(rel, equivRel);
-    ruleCallStack.pop();
   }
 
   //~ Inner Classes ----------------------------------------------------------

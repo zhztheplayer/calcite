@@ -194,6 +194,7 @@ joinCondition:
 
 tableReference:
       tablePrimary
+      [ FOR SYSTEM_TIME AS OF expression ]
       [ matchRecognize ]
       [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
 
@@ -563,10 +564,13 @@ JAVA,
 JSON,
 **JSON_ARRAY**,
 **JSON_ARRAYAGG**,
+JSON_DEPTH,
 **JSON_EXISTS**,
 **JSON_OBJECT**,
 **JSON_OBJECTAGG**,
+JSON_PRETTY,
 **JSON_QUERY**,
+JSON_TYPE,
 **JSON_VALUE**,
 K,
 KEY,
@@ -1444,10 +1448,10 @@ period:
 | {fn SUBSTRING(string, offset, length)} | Returns a character string that consists of *length* characters from *string* starting at the *offset* position
 | {fn UCASE(string)} | Returns a string in which all alphabetic characters in *string* have been converted to upper case
 | {fn REPLACE(string, search, replacement)} | Returns a string in which all the occurrences of *search* in *string* are replaced with *replacement*; if *replacement* is the empty string, the occurrences of *search* are removed
+| {fn ASCII(string)} | Returns the corresponding ASCII code of the first character of *string*; Returns 0 if *string* is empty; Returns NULL if *string* is NULL; Returns the Unicode code point for non-ASCII character
 
 Not implemented:
 
-* {fn ASCII(string)} - Convert a single-character string to the corresponding ASCII code, an integer between 0 and 255
 * {fn CHAR(string)}
 * {fn DIFFERENCE(string, string)}
 * {fn LEFT(string, integer)}
@@ -1532,6 +1536,8 @@ and `LISTAGG`).
 | MAX( [ ALL &#124; DISTINCT ] value)           | Returns the maximum value of *value* across all input values
 | MIN( [ ALL &#124; DISTINCT ] value)           | Returns the minimum value of *value* across all input values
 | ANY_VALUE( [ ALL &#124; DISTINCT ] value)     | Returns one of the values of *value* across all input values; this is NOT specified in the SQL standard
+| BIT_AND( [ ALL &#124; DISTINCT ] value)       | Returns the bitwise AND of all non-null input values, or null if none
+| BIT_OR( [ ALL &#124; DISTINCT ] value)        | Returns the bitwise OR of all non-null input values, or null if none
 | STDDEV_POP( [ ALL &#124; DISTINCT ] numeric)  | Returns the population standard deviation of *numeric* across all input values
 | STDDEV_SAMP( [ ALL &#124; DISTINCT ] numeric) | Returns the sample standard deviation of *numeric* across all input values
 | VAR_POP( [ ALL &#124; DISTINCT ] value)       | Returns the population variance (square of the population standard deviation) of *numeric* across all input values
@@ -1580,7 +1586,7 @@ Not implemented:
 * LAST_VALUE(value) IGNORE NULLS OVER window
 * PERCENT_RANK(value) OVER window
 * CUME_DIST(value) OVER window
-* NTH_VALUE(value, nth) [ FROM { FIRST | LAST } ] IGNORE NULLS OVER window
+* NTH_VALUE(value, nth) [ FROM { FIRST &#124; LAST } ] IGNORE NULLS OVER window
 
 ### Grouping functions
 
@@ -1972,12 +1978,13 @@ Not implemented:
 | JSON_OBJECT( { [ KEY ] name VALUE value [ FORMAT JSON ] &#124; name : value [ FORMAT JSON ] } * [ { NULL &#124; ABSENT } ON NULL ] ) | Construct json object using a series of key (**name**) value (**value**) pairs
 | JSON_OBJECTAGG( { [ KEY ] name VALUE value [ FORMAT JSON ] &#124; name : value [ FORMAT JSON ] } [ { NULL &#124; ABSENT } ON NULL ] ) | Aggregate function to construct json object using a key (**name**) value (**value**) pair
 | JSON_ARRAY( { value [ FORMAT JSON ] } * [ { NULL &#124; ABSENT } ON NULL ] ) | Construct json array using a series of values (**value**)
-| JSON_ARRAYAGG( value [ FORMAT JSON ] [ { NULL &#124; ABSENT } ON NULL ] ) | Aggregate function to construct json array using a value (**value**)
+| JSON_ARRAYAGG( value [ FORMAT JSON ] [ ORDER BY orderItem [, orderItem ]* ] [ { NULL &#124; ABSENT } ON NULL ] ) | Aggregate function to construct json array using a value (**value**)
 
 Note:
 
 * The flag **FORMAT JSON** indicates the value is formatted as JSON character string. When **FORMAT JSON** is used, value should be de-parse from JSON character string to SQL structured value.
 * **ON NULL** clause defines how the JSON output represents null value. The default null behavior of **JSON_OBJECT** and **JSON_OBJECTAGG** is *NULL ON NULL*, and for **JSON_ARRAY** and **JSON_ARRAYAGG** it is *ABSENT ON NULL*.
+* If **ORDER BY** clause is provided, **JSON_ARRAYAGG** will sort the input rows by the specified order before performing aggregation.
 
 #### Comparison Operators
 
@@ -1991,6 +1998,52 @@ Note:
 | value IS NOT JSON OBJECT                          | Whether *value* is not a json object, *value* is in character string type
 | value IS JSON ARRAY                               | Whether *value* is a json array, *value* is in character string type
 | value IS NOT JSON ARRAY                           | Whether *value* is not a json array, *value* is in character string type
+
+#### MySQL Specific Operators
+
+| Operator syntax                                   | Description
+|:------------------------------------------------- |:-----------
+| JSON_TYPE(value)                                  | Returns a string indicating the type of a JSON **value**. This can be an object, an array, or a scalar type
+| JSON_DEPTH(value)                                 | Returns a integer indicating the depth of a JSON **value**. This can be an object, an array, or a scalar type
+| JSON_PRETTY(value)                                | Returns a pretty-printing of JSON **value**.
+
+* JSON_TYPE
+
+Example SQL:
+
+```SQL
+SELECT JSON_TYPE(v) AS c1
+,JSON_TYPE(JSON_VALUE(v, 'lax $.b' ERROR ON ERROR)) AS c2
+,JSON_TYPE(JSON_VALUE(v, 'strict $.a[0]' ERROR ON ERROR)) AS c3
+,JSON_TYPE(JSON_VALUE(v, 'strict $.a[1]' ERROR ON ERROR)) AS c4
+FROM (VALUES ('{"a": [10, true],"b": "[10, true]"}')) AS t(v)
+LIMIT 10;
+```
+
+Result:
+
+| c1     | c2    | c3      | c4      |
+| ------ | ----- | ------- | ------- |
+| OBJECT | ARRAY | INTEGER | BOOLEAN |
+
+* JSON_DEPTH
+
+Example SQL:
+
+```SQL
+SELECT JSON_DEPTH(v) AS c1
+,JSON_DEPTH(JSON_VALUE(v, 'lax $.b' ERROR ON ERROR)) AS c2
+,JSON_DEPTH(JSON_VALUE(v, 'strict $.a[0]' ERROR ON ERROR)) AS c3
+,JSON_DEPTH(JSON_VALUE(v, 'strict $.a[1]' ERROR ON ERROR)) AS c4
+FROM (VALUES ('{"a": [10, true],"b": "[10, true]"}')) AS t(v)
+LIMIT 10;
+```
+
+Result:
+
+| c1     | c2    | c3      | c4      |
+| ------ | ----- | ------- | ------- |
+| 3      | 2     | 1       | 1       |
 
 ## User-defined functions
 

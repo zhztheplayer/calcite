@@ -14,16 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.elasticsearch;
+package org.apache.calcite.schema;
+
+import javax.annotation.Nonnull;
 
 /**
- * Thrown when {@link org.apache.calcite.rel.RelNode} expression can't be processed
- * (or converted into ES query)
+ * Table that is temporal.
  */
-class ExpressionNotAnalyzableException extends Exception {
-  ExpressionNotAnalyzableException(String message, Throwable cause) {
-    super(message, cause);
-  }
+public interface TemporalTable extends Table {
+
+  /** Returns the name of the system column that contains the start effective
+   * time of each row. */
+  @Nonnull String getSysStartFieldName();
+
+  /** Returns the name of the system column that contains the end effective
+   * time of each row. */
+  @Nonnull String getSysEndFieldName();
 }
 
-// End ExpressionNotAnalyzableException.java
+// End TemporalTable.java

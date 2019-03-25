@@ -34,6 +34,7 @@ import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
@@ -53,6 +54,7 @@ import org.apache.calcite.tools.RelRunner;
 import org.apache.calcite.tools.RelRunners;
 import org.apache.calcite.util.Holder;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.mapping.Mappings;
 
@@ -123,7 +125,7 @@ public class RelBuilderTest {
     return Frameworks.newConfigBuilder()
         .parserConfig(SqlParser.Config.DEFAULT)
         .defaultSchema(
-            CalciteAssert.addSchema(rootSchema, CalciteAssert.SchemaSpec.SCOTT))
+            CalciteAssert.addSchema(rootSchema, CalciteAssert.SchemaSpec.SCOTT_WITH_TEMPORAL))
         .traitDefs((List<RelTraitDef>) null)
         .programs(Programs.heuristicJoinOrder(Programs.RULE_SET, true, 2));
   }
@@ -277,6 +279,47 @@ public class RelBuilderTest {
             .build();
     final String expected = "LogicalFilter(condition=[=($7, 20)])\n"
         + "  LogicalTableScan(table=[[scott, EMP]])\n";
+    assertThat(root, hasTree(expected));
+  }
+
+  @Test public void testSnapshotTemporalTable() {
+    // Equivalent SQL:
+    //   SELECT *
+    //   FROM products_temporal FOR SYSTEM_TIME AS OF TIMESTAMP '2011-07-20 12:34:56'
+    final RelBuilder builder = RelBuilder.create(config().build());
+    RelNode root =
+        builder.scan("products_temporal")
+            .snapshot(
+                builder.getRexBuilder().makeTimestampLiteral(
+                    new TimestampString("2011-07-20 12:34:56"), 0))
+            .build();
+    final String expected = "LogicalSnapshot(period=[2011-07-20 12:34:56])\n"
+            + "  LogicalTableScan(table=[[scott, products_temporal]])\n";
+    assertThat(root, hasTree(expected));
+  }
+
+  @Test public void testJoinTemporalTable() {
+    // Equivalent SQL:
+    //   SELECT *
+    //   FROM orders
+    //   JOIN products_temporal FOR SYSTEM_TIME AS OF TIMESTAMP '2011-07-20 12:34:56'
+    //   ON orders.product = products_temporal.id
+    final RelBuilder builder = RelBuilder.create(config().build());
+    RelNode root =
+        builder.scan("orders")
+            .scan("products_temporal")
+            .snapshot(
+                builder.getRexBuilder().makeTimestampLiteral(
+                    new TimestampString("2011-07-20 12:34:56"), 0))
+            .join(JoinRelType.INNER,
+                builder.call(SqlStdOperatorTable.EQUALS,
+                    builder.field(2, 0, "PRODUCT"),
+                    builder.field(2, 1, "ID")))
+            .build();
+    final String expected = "LogicalJoin(condition=[=($2, $4)], joinType=[inner])\n"
+        + "  LogicalTableScan(table=[[scott, orders]])\n"
+        + "  LogicalSnapshot(period=[2011-07-20 12:34:56])\n"
+        + "    LogicalTableScan(table=[[scott, products_temporal]])\n";
     assertThat(root, hasTree(expected));
   }
 
@@ -491,7 +534,7 @@ public class RelBuilderTest {
             .build();
     final String expected = ""
         + "LogicalProject(DEPTNO=[$7], COMM=[CAST($6):SMALLINT NOT NULL],"
-        + " $f2=[OR(=($7, 20), AND(null, =($7, 10), IS NULL($6),"
+        + " $f2=[OR(=($7, 20), AND(null:NULL, =($7, 10), IS NULL($6),"
         + " IS NULL($7)), =($7, 30))], n2=[IS NULL($2)],"
         + " nn2=[IS NOT NULL($3)], $f5=[20], COMM0=[$6], C=[$6])\n"
         + "  LogicalTableScan(table=[[scott, EMP]])\n";
@@ -564,6 +607,34 @@ public class RelBuilderTest {
     final String expected = "LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2])\n"
         + "  LogicalTableScan(table=[[scott, EMP]])\n";
     assertThat(root, hasTree(expected));
+  }
+
+  private void project1(int value, SqlTypeName sqlTypeName, String message, String expected) {
+    final RelBuilder builder = RelBuilder.create(config().build());
+    RexBuilder rex = builder.getRexBuilder();
+    RelNode actual =
+        builder.values(new String[]{"x"}, 42)
+            .empty()
+            .project(
+                rex.makeLiteral(value,
+                    rex.getTypeFactory().createSqlType(sqlTypeName), false))
+            .build();
+    assertThat(message, actual, hasTree(expected));
+  }
+
+  @Test public void testProject1asInt() {
+    project1(1, SqlTypeName.INTEGER,
+        "project(1 as INT) might omit type of 1 in the output plan as"
+            + " it is convention to omit INTEGER for integer literals",
+        "LogicalProject($f0=[1])\n"
+            + "  LogicalValues(tuples=[[]])\n");
+  }
+
+  @Test public void testProject1asBigInt() {
+    project1(1, SqlTypeName.BIGINT, "project(1 as BIGINT) should contain"
+            + " type of 1 in the output plan since the convention is to omit type of INTEGER",
+        "LogicalProject($f0=[1:BIGINT])\n"
+            + "  LogicalValues(tuples=[[]])\n");
   }
 
   @Test public void testRename() {
@@ -666,7 +737,7 @@ public class RelBuilderTest {
             .convert(rowType, false)
             .build();
     final String expected = ""
-        + "LogicalProject(DEPTNO=[CAST($0):BIGINT NOT NULL], DNAME=[CAST($1):VARCHAR(10) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\" NOT NULL], LOC=[CAST($2):VARCHAR(10) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\" NOT NULL])\n"
+        + "LogicalProject(DEPTNO=[CAST($0):BIGINT NOT NULL], DNAME=[CAST($1):VARCHAR(10) NOT NULL], LOC=[CAST($2):VARCHAR(10) NOT NULL])\n"
         + "  LogicalTableScan(table=[[scott, DEPT]])\n";
     assertThat(root, hasTree(expected));
   }
@@ -684,7 +755,7 @@ public class RelBuilderTest {
             .convert(rowType, true)
             .build();
     final String expected = ""
-        + "LogicalProject(a=[CAST($0):BIGINT NOT NULL], b=[CAST($1):VARCHAR(10) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\" NOT NULL], c=[CAST($2):VARCHAR(10) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\" NOT NULL])\n"
+        + "LogicalProject(a=[CAST($0):BIGINT NOT NULL], b=[CAST($1):VARCHAR(10) NOT NULL], c=[CAST($2):VARCHAR(10) NOT NULL])\n"
         + "  LogicalTableScan(table=[[scott, DEPT]])\n";
     assertThat(root, hasTree(expected));
   }
@@ -1506,8 +1577,35 @@ public class RelBuilderTest {
             .build();
     final String expected = ""
         + "LogicalFilter(condition=[>($1, $2)])\n"
-        + "  LogicalProject($f1=[20], $f12=[10], DEPTNO=[$7])\n"
+        + "  LogicalProject($f1=[20], $f2=[10], DEPTNO=[$7])\n"
         + "    LogicalTableScan(table=[[scott, EMP]])\n";
+    assertThat(root, hasTree(expected));
+  }
+
+  /**
+   * Tests that project field name aliases are suggested incrementally.
+   */
+  @Test public void testAliasSuggester() {
+    final RelBuilder builder = RelBuilder.create(config().build());
+    RelNode root = builder.scan("EMP")
+        .project(builder.field(0),
+            builder.field(0),
+            builder.field(0),
+            builder.field(0),
+            builder.field(0),
+            builder.field(0),
+            builder.field(0),
+            builder.field(0),
+            builder.field(0),
+            builder.field(0),
+            builder.field(0),
+            builder.field(0))
+        .build();
+    final String expected = ""
+        + "LogicalProject(EMPNO=[$0], EMPNO0=[$0], EMPNO1=[$0], "
+        + "EMPNO2=[$0], EMPNO3=[$0], EMPNO4=[$0], EMPNO5=[$0], "
+        + "EMPNO6=[$0], EMPNO7=[$0], EMPNO8=[$0], EMPNO9=[$0], EMPNO10=[$0])\n"
+        + "  LogicalTableScan(table=[[scott, EMP]])\n";
     assertThat(root, hasTree(expected));
   }
 
@@ -1753,7 +1851,7 @@ public class RelBuilderTest {
         "LogicalValues(tuples=[[{ null, 1, 'abc' }, { false, null, 'longer string' }]])\n";
     assertThat(root, hasTree(expected));
     final String expectedType =
-        "RecordType(BOOLEAN a, INTEGER expr$1, CHAR(13) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\" NOT NULL c) NOT NULL";
+        "RecordType(BOOLEAN a, INTEGER expr$1, CHAR(13) NOT NULL c) NOT NULL";
     assertThat(root.getRowType().getFullTypeString(), is(expectedType));
   }
 
@@ -1826,7 +1924,7 @@ public class RelBuilderTest {
         "LogicalValues(tuples=[[{ null, null }, { 1, null }]])\n";
     assertThat(root, hasTree(expected));
     final String expectedType =
-        "RecordType(BIGINT NOT NULL a, VARCHAR(10) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\" NOT NULL a) NOT NULL";
+        "RecordType(BIGINT NOT NULL a, VARCHAR(10) NOT NULL a) NOT NULL";
     assertThat(root.getRowType().getFullTypeString(), is(expectedType));
   }
 

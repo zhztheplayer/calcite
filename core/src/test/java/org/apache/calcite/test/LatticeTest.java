@@ -32,6 +32,7 @@ import com.google.common.collect.ImmutableList;
 import org.junit.Assume;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -58,6 +59,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Unit test for lattices.
  */
+@Category(SlowTests.class)
 public class LatticeTest {
   private static final String SALES_LATTICE = "{\n"
       + "  name: 'star',\n"
@@ -332,7 +334,7 @@ public class LatticeTest {
                   + "  LogicalProject(DUMMY=[0])\n"
                   + "    StarTableScan(table=[[adhoc, star]])\n",
                   counter));
-    } catch (RuntimeException e) {
+    } catch (Throwable e) {
       assertThat(Throwables.getStackTraceAsString(e),
           containsString("CannotPlanException"));
     }
