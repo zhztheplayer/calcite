@@ -273,6 +273,8 @@ public enum BuiltInMethod {
       "jsonStructuredValueExpression", Object.class),
   JSON_API_COMMON_SYNTAX(SqlFunctions.class, "jsonApiCommonSyntax",
       Object.class, String.class),
+  JSON_API_COMMON_SYNTAX_WITHOUT_PATH(SqlFunctions.class, "jsonApiCommonSyntax",
+      Object.class),
   JSON_EXISTS(SqlFunctions.class, "jsonExists", Object.class),
   JSON_VALUE_ANY(SqlFunctions.class, "jsonValueAny", Object.class,
       SqlJsonValueEmptyOrErrorBehavior.class, Object.class,

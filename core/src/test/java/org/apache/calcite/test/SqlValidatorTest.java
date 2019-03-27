@@ -8708,6 +8708,7 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         + "DOT -\n"
         + "ITEM -\n"
         + "JSON_API_COMMON_SYNTAX -\n"
+        + "JSON_API_COMMON_SYNTAX_WITHOUT_PATH -\n"
         + "JSON_STRUCTURED_VALUE_EXPRESSION -\n"
         + "JSON_VALUE_EXPRESSION -\n"
         + "NEXT_VALUE -\n"

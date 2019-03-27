@@ -2424,7 +2424,7 @@ public class SqlFunctions {
   }
 
   public static PathContext jsonApiCommonSyntax(Object input) {
-    return new PathContext(input, null);
+    return jsonApiCommonSyntax(input, "strict $");
   }
 
   public static PathContext jsonApiCommonSyntax(Object input, String pathSpec) {

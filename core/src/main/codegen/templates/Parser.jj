@@ -4952,7 +4952,7 @@ SqlNode JsonApiCommonSyntax(boolean acceptNonPath) :
             if (!acceptNonPath) {
               throw new ParseException(RESOURCE.jsonPathMustBeSpecified().str());
             }
-            op = SqlStdOperatorTable.JSON_API_COMMON_SYNTAX;
+            op = SqlStdOperatorTable.JSON_API_COMMON_SYNTAX_WITHOUT_PATH;
         }
     )
     [
