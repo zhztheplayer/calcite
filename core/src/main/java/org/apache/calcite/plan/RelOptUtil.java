@@ -16,8 +16,15 @@
  */
 package org.apache.calcite.plan;
 
+import org.apache.calcite.adapter.enumerable.EnumerableBindable;
+import org.apache.calcite.adapter.enumerable.EnumerableInterpreterRule;
+import org.apache.calcite.adapter.enumerable.EnumerableRules;
 import org.apache.calcite.avatica.AvaticaConnection;
+import org.apache.calcite.config.CalciteSystemProperty;
+import org.apache.calcite.interpreter.Bindables;
 import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.plan.volcano.AbstractConverter;
+import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
@@ -44,15 +51,50 @@ import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.rules.AbstractMaterializedViewRule;
+import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
+import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
+import org.apache.calcite.rel.rules.AggregateProjectMergeRule;
 import org.apache.calcite.rel.rules.AggregateProjectPullUpConstantsRule;
+import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule;
+import org.apache.calcite.rel.rules.AggregateRemoveRule;
+import org.apache.calcite.rel.rules.AggregateStarTableRule;
+import org.apache.calcite.rel.rules.AggregateValuesRule;
+import org.apache.calcite.rel.rules.CalcRemoveRule;
 import org.apache.calcite.rel.rules.DateRangeRules;
+import org.apache.calcite.rel.rules.ExchangeRemoveConstantKeysRule;
+import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
+import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterMergeRule;
+import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
+import org.apache.calcite.rel.rules.FilterTableScanRule;
 import org.apache.calcite.rel.rules.IntersectToDistinctRule;
+import org.apache.calcite.rel.rules.JoinAssociateRule;
+import org.apache.calcite.rel.rules.JoinCommuteRule;
+import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
+import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
+import org.apache.calcite.rel.rules.MaterializedViewFilterScanRule;
 import org.apache.calcite.rel.rules.MultiJoin;
+import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
+import org.apache.calcite.rel.rules.ProjectMergeRule;
+import org.apache.calcite.rel.rules.ProjectRemoveRule;
+import org.apache.calcite.rel.rules.ProjectTableScanRule;
 import org.apache.calcite.rel.rules.ProjectToWindowRule;
+import org.apache.calcite.rel.rules.ProjectWindowTransposeRule;
 import org.apache.calcite.rel.rules.PruneEmptyRules;
+import org.apache.calcite.rel.rules.ReduceExpressionsRule;
+import org.apache.calcite.rel.rules.SemiJoinRule;
+import org.apache.calcite.rel.rules.SortJoinTransposeRule;
+import org.apache.calcite.rel.rules.SortProjectTransposeRule;
+import org.apache.calcite.rel.rules.SortRemoveConstantKeysRule;
+import org.apache.calcite.rel.rules.SortRemoveRule;
+import org.apache.calcite.rel.rules.SortUnionTransposeRule;
+import org.apache.calcite.rel.rules.TableScanRule;
 import org.apache.calcite.rel.rules.UnionMergeRule;
 import org.apache.calcite.rel.rules.UnionPullUpConstantsRule;
+import org.apache.calcite.rel.rules.UnionToDistinctRule;
+import org.apache.calcite.rel.rules.ValuesReduceRule;
+import org.apache.calcite.rel.stream.StreamRules;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -1705,7 +1747,12 @@ public abstract class RelOptUtil {
     return joinRel;
   }
 
+  @Deprecated
   public static void registerAbstractRels(RelOptPlanner planner) {
+    registerAbstractRules(planner);
+  }
+
+  public static void registerAbstractRules(RelOptPlanner planner) {
     planner.addRule(AggregateProjectPullUpConstantsRule.INSTANCE2);
     planner.addRule(UnionPullUpConstantsRule.INSTANCE);
     planner.addRule(PruneEmptyRules.UNION_INSTANCE);
@@ -1725,6 +1772,149 @@ public abstract class RelOptUtil {
     planner.addRule(FilterMergeRule.INSTANCE);
     planner.addRule(DateRangeRules.FILTER_INSTANCE);
     planner.addRule(IntersectToDistinctRule.INSTANCE);
+  }
+
+  public static void registerAbstractRelationalRules(RelOptPlanner planner) {
+    planner.addRule(FilterJoinRule.FILTER_ON_JOIN);
+    planner.addRule(FilterJoinRule.JOIN);
+    planner.addRule(AbstractConverter.ExpandConversionRule.INSTANCE);
+    planner.addRule(JoinCommuteRule.INSTANCE);
+    planner.addRule(SemiJoinRule.PROJECT);
+    planner.addRule(SemiJoinRule.JOIN);
+    if (CalciteSystemProperty.COMMUTE.value()) {
+      planner.addRule(JoinAssociateRule.INSTANCE);
+    }
+    planner.addRule(AggregateRemoveRule.INSTANCE);
+    planner.addRule(UnionToDistinctRule.INSTANCE);
+    planner.addRule(ProjectRemoveRule.INSTANCE);
+    planner.addRule(AggregateJoinTransposeRule.INSTANCE);
+    planner.addRule(AggregateProjectMergeRule.INSTANCE);
+    planner.addRule(CalcRemoveRule.INSTANCE);
+    planner.addRule(SortRemoveRule.INSTANCE);
+
+    // todo: rule which makes Project({OrdinalRef}) disappear
+  }
+
+  public static final List<RelOptRule> ENUMERABLE_RULES =
+      ImmutableList.of(
+          EnumerableRules.ENUMERABLE_JOIN_RULE,
+          EnumerableRules.ENUMERABLE_MERGE_JOIN_RULE,
+          EnumerableRules.ENUMERABLE_SEMI_JOIN_RULE,
+          EnumerableRules.ENUMERABLE_CORRELATE_RULE,
+          EnumerableRules.ENUMERABLE_PROJECT_RULE,
+          EnumerableRules.ENUMERABLE_FILTER_RULE,
+          EnumerableRules.ENUMERABLE_AGGREGATE_RULE,
+          EnumerableRules.ENUMERABLE_SORT_RULE,
+          EnumerableRules.ENUMERABLE_LIMIT_RULE,
+          EnumerableRules.ENUMERABLE_COLLECT_RULE,
+          EnumerableRules.ENUMERABLE_UNCOLLECT_RULE,
+          EnumerableRules.ENUMERABLE_UNION_RULE,
+          EnumerableRules.ENUMERABLE_INTERSECT_RULE,
+          EnumerableRules.ENUMERABLE_MINUS_RULE,
+          EnumerableRules.ENUMERABLE_TABLE_MODIFICATION_RULE,
+          EnumerableRules.ENUMERABLE_VALUES_RULE,
+          EnumerableRules.ENUMERABLE_WINDOW_RULE,
+          EnumerableRules.ENUMERABLE_TABLE_SCAN_RULE,
+          EnumerableRules.ENUMERABLE_TABLE_FUNCTION_SCAN_RULE);
+
+  private static void registerEnumerableRules(RelOptPlanner planner) {
+    ENUMERABLE_RULES.forEach(planner::addRule);
+  }
+
+  private static final List<RelOptRule> BASE_RULES =
+      ImmutableList.of(
+          AggregateStarTableRule.INSTANCE,
+          AggregateStarTableRule.INSTANCE2,
+          TableScanRule.INSTANCE,
+          CalciteSystemProperty.COMMUTE.value()
+              ? JoinAssociateRule.INSTANCE
+              : ProjectMergeRule.INSTANCE,
+          FilterTableScanRule.INSTANCE,
+          ProjectFilterTransposeRule.INSTANCE,
+          FilterProjectTransposeRule.INSTANCE,
+          FilterJoinRule.FILTER_ON_JOIN,
+          JoinPushExpressionsRule.INSTANCE,
+          AggregateExpandDistinctAggregatesRule.INSTANCE,
+          AggregateReduceFunctionsRule.INSTANCE,
+          FilterAggregateTransposeRule.INSTANCE,
+          ProjectWindowTransposeRule.INSTANCE,
+          JoinCommuteRule.INSTANCE,
+          JoinPushThroughJoinRule.RIGHT,
+          JoinPushThroughJoinRule.LEFT,
+          SortProjectTransposeRule.INSTANCE,
+          SortJoinTransposeRule.INSTANCE,
+          SortRemoveConstantKeysRule.INSTANCE,
+          SortUnionTransposeRule.INSTANCE,
+          ExchangeRemoveConstantKeysRule.EXCHANGE_INSTANCE,
+          ExchangeRemoveConstantKeysRule.SORT_EXCHANGE_INSTANCE);
+
+  private static void registerBaseRules(RelOptPlanner planner) {
+    BASE_RULES.forEach(planner::addRule);
+  }
+
+  private static final List<RelOptRule> CONSTANT_REDUCTION_RULES =
+      ImmutableList.of(
+          ReduceExpressionsRule.PROJECT_INSTANCE,
+          ReduceExpressionsRule.FILTER_INSTANCE,
+          ReduceExpressionsRule.CALC_INSTANCE,
+          ReduceExpressionsRule.WINDOW_INSTANCE,
+          ReduceExpressionsRule.JOIN_INSTANCE,
+          ValuesReduceRule.FILTER_INSTANCE,
+          ValuesReduceRule.PROJECT_FILTER_INSTANCE,
+          ValuesReduceRule.PROJECT_INSTANCE,
+          AggregateValuesRule.INSTANCE);
+
+  private static void registerReductionRules(RelOptPlanner planner) {
+    CONSTANT_REDUCTION_RULES.forEach(planner::addRule);
+  }
+
+  public static void registerDefaultRules(RelOptPlanner planner,
+      boolean enableMaterialziations, boolean enableBindable) {
+    if (CalciteSystemProperty.ENABLE_COLLATION_TRAIT.value()) {
+      registerAbstractRelationalRules(planner);
+    }
+    registerAbstractRules(planner);
+    registerBaseRules(planner);
+
+    if (enableMaterialziations) {
+      planner.addRule(MaterializedViewFilterScanRule.INSTANCE);
+      planner.addRule(AbstractMaterializedViewRule.INSTANCE_PROJECT_FILTER);
+      planner.addRule(AbstractMaterializedViewRule.INSTANCE_FILTER);
+      planner.addRule(AbstractMaterializedViewRule.INSTANCE_PROJECT_JOIN);
+      planner.addRule(AbstractMaterializedViewRule.INSTANCE_JOIN);
+      planner.addRule(AbstractMaterializedViewRule.INSTANCE_PROJECT_AGGREGATE);
+      planner.addRule(AbstractMaterializedViewRule.INSTANCE_AGGREGATE);
+    }
+    if (enableBindable) {
+      for (RelOptRule rule : Bindables.RULES) {
+        planner.addRule(rule);
+      }
+    }
+    planner.addRule(Bindables.BINDABLE_TABLE_SCAN_RULE);
+    planner.addRule(ProjectTableScanRule.INSTANCE);
+    planner.addRule(ProjectTableScanRule.INTERPRETER);
+
+    if (CalciteSystemProperty.ENABLE_ENUMERABLE.value()) {
+      registerEnumerableRules(planner);
+      planner.addRule(EnumerableInterpreterRule.INSTANCE);
+    }
+
+    if (enableBindable && CalciteSystemProperty.ENABLE_ENUMERABLE.value()) {
+      planner.addRule(
+          EnumerableBindable.EnumerableToBindableConverterRule.INSTANCE);
+    }
+
+    if (CalciteSystemProperty.ENABLE_STREAM.value()) {
+      for (RelOptRule rule : StreamRules.RULES) {
+        planner.addRule(rule);
+      }
+    }
+
+    // Change the below to enable constant-reduction.
+    if (false) {
+      registerReductionRules(planner);
+    }
+
   }
 
   /**

@@ -60,6 +60,13 @@ public interface CalciteConnectionConfig extends ConnectionConfig {
   <T> T parserFactory(Class<T> parserFactoryClass, T defaultParserFactory);
   /** @see CalciteConnectionProperty#SCHEMA_FACTORY */
   <T> T schemaFactory(Class<T> schemaFactoryClass, T defaultSchemaFactory);
+  /** @see CalciteConnectionProperty#VALIDATOR_FACTORY */
+  <T> T validatorFactory(Class<T> validatorFactoryClass, T defaultValidatorFactory);
+  /** @see CalciteConnectionProperty#CATALOG_READER_FACTORY */
+  <T> T catalogReaderFactory(Class<T> catalogReaderFactoryClass, T defaultCatalogReaderFactory);
+  /** @see CalciteConnectionProperty#SQL_TO_REL_CONVERTER_FACTORY */
+  <T> T sqlToRelConverterFactory(Class<T> sqlToRelConverterFactoryClass,
+      T defaultSqlToRelConverterFactory);
   /** @see CalciteConnectionProperty#SCHEMA_TYPE */
   JsonSchema.Type schemaType();
   /** @see CalciteConnectionProperty#SPARK */

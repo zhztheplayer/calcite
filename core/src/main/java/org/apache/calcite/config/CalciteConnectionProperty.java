@@ -105,6 +105,24 @@ public enum CalciteConnectionProperty implements ConnectionProperty {
    * {@link org.apache.calcite.sql.parser.SqlParserImplFactory}. */
   PARSER_FACTORY("parserFactory", Type.PLUGIN, null, false),
 
+  /** SQL validator factory.
+   *
+   * <p>The name of a class that implements
+   * {@link org.apache.calcite.sql.validate.SqlValidatorFactory}. */
+  VALIDATOR_FACTORY("validatorFactory", Type.PLUGIN, null, false),
+
+  /** Catalog reader factory.
+   *
+   * <p>The name of a class that implements
+   * {@link org.apache.calcite.prepare.CatalogReaderFactory}. */
+  CATALOG_READER_FACTORY("catalogReaderFactory", Type.PLUGIN, null, false),
+
+  /** SQL-to-rel converter factory.
+   *
+   * <p>The name of a class that implements
+   * {@link org.apache.calcite.sql2rel.SqlToRelConverterFactory}. */
+  SQL_TO_REL_CONVERTER_FACTORY("sqlToRelConverterFactory", Type.PLUGIN, null, false),
+
   /** Name of initial schema. */
   SCHEMA("schema", Type.STRING, null, false),
 

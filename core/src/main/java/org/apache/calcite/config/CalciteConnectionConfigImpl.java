@@ -160,6 +160,24 @@ public class CalciteConnectionConfigImpl extends ConnectionConfigImpl
         .getPlugin(schemaFactoryClass, defaultSchemaFactory);
   }
 
+  @Override public <T> T validatorFactory(Class<T> validatorFactoryClass,
+      T defaultValidatorFactory) {
+    return CalciteConnectionProperty.VALIDATOR_FACTORY.wrap(properties)
+        .getPlugin(validatorFactoryClass, defaultValidatorFactory);
+  }
+
+  @Override public <T> T catalogReaderFactory(Class<T> catalogReaderFactoryClass,
+      T defaultCatalogReaderFactory) {
+    return CalciteConnectionProperty.CATALOG_READER_FACTORY.wrap(properties)
+        .getPlugin(catalogReaderFactoryClass, defaultCatalogReaderFactory);
+  }
+
+  @Override public <T> T sqlToRelConverterFactory(Class<T> sqlToRelConverterFactoryClass,
+      T defaultSqlToRelConverterFactory) {
+    return CalciteConnectionProperty.SQL_TO_REL_CONVERTER_FACTORY.wrap(properties)
+        .getPlugin(sqlToRelConverterFactoryClass, defaultSqlToRelConverterFactory);
+  }
+
   public JsonSchema.Type schemaType() {
     return CalciteConnectionProperty.SCHEMA_TYPE.wrap(properties)
         .getEnum(JsonSchema.Type.class);

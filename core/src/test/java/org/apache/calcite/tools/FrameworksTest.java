@@ -35,8 +35,10 @@ import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.prepare.Prepare;
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalTableModify;
@@ -73,6 +75,7 @@ import org.apache.calcite.util.Util;
 
 import com.google.common.collect.ImmutableList;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.reflect.Type;
@@ -191,6 +194,52 @@ public class FrameworksTest {
             return null;
           }
         });
+  }
+
+  @Test public void testDefaultRules() throws Exception {
+    final SchemaPlus rootSchema = Frameworks.createRootSchema(true);
+    rootSchema.add("MYTABLE", new TableImpl());
+    final FrameworkConfig config = Frameworks.newConfigBuilder()
+        .defaultSchema(rootSchema)
+        .programs((Program) (planner, rel, requiredOutputTraits, materializations,
+            lattices) -> {
+          planner.setRoot(
+              planner.changeTraits(rel, requiredOutputTraits));
+          return planner.findBestExp();
+        })
+        .build();
+    final Planner planner = Frameworks.getPlanner(config);
+    SqlNode parsed = planner.parse("select \"id\", \"name\" from mytable");
+    SqlNode validated = planner.validate(parsed);
+    RelRoot rel = planner.rel(validated);
+    RelTraitSet traitSet = RelTraitSet.createEmpty();
+    traitSet = traitSet.plus(EnumerableConvention.INSTANCE);
+    traitSet = traitSet.plus(RelCollations.EMPTY);
+    RelNode best = planner.transform(0, traitSet, rel.rel);
+    Assert.assertThat(RelOptUtil.toString(best),
+        equalTo("EnumerableTableScan(table=[[MYTABLE]])\n"));
+  }
+
+  @Test public void testDefaultRulesOverridden() throws Exception {
+    final SchemaPlus rootSchema = Frameworks.createRootSchema(true);
+    rootSchema.add("MYTABLE", new TableImpl());
+    final FrameworkConfig config = Frameworks.newConfigBuilder()
+        .defaultSchema(rootSchema)
+        .programs(Programs.ofRules()) // override default rules
+        .build();
+    final Planner planner = Frameworks.getPlanner(config);
+    SqlNode parsed = planner.parse("select \"id\", \"name\" from mytable");
+    SqlNode validated = planner.validate(parsed);
+    RelRoot rel = planner.rel(validated);
+    RelTraitSet traitSet = RelTraitSet.createEmpty();
+    traitSet = traitSet.plus(EnumerableConvention.INSTANCE);
+    traitSet = traitSet.plus(RelCollations.EMPTY);
+    try {
+      planner.transform(0, traitSet, rel.rel);
+      Assert.fail("default rules are disabled, but successfully planned");
+    } catch (RelOptPlanner.CannotPlanException e) {
+      // should fail
+    }
   }
 
   /** Tests that the validator expands identifiers by default.
