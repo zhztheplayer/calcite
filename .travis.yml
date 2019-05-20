@@ -27,6 +27,7 @@ matrix:
     - env: IMAGE=maven:3-jdk-9
     - env: IMAGE=maven:3-jdk-8 JDOC=Y
     - os: windows
+      language: shell
       before_install:
         - choco install jdk8
         - choco install maven
