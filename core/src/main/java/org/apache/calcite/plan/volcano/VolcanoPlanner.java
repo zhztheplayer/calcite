@@ -48,18 +48,6 @@ import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
-import org.apache.calcite.rel.rules.AggregateMergeRule;
-import org.apache.calcite.rel.rules.AggregateProjectMergeRule;
-import org.apache.calcite.rel.rules.AggregateRemoveRule;
-import org.apache.calcite.rel.rules.CalcRemoveRule;
-import org.apache.calcite.rel.rules.FilterJoinRule;
-import org.apache.calcite.rel.rules.JoinAssociateRule;
-import org.apache.calcite.rel.rules.JoinCommuteRule;
-import org.apache.calcite.rel.rules.ProjectRemoveRule;
-import org.apache.calcite.rel.rules.SemiJoinRule;
-import org.apache.calcite.rel.rules.SortRemoveRule;
-import org.apache.calcite.rel.rules.UnionToDistinctRule;
 import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.util.Litmus;
@@ -235,7 +223,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
   private final Map<List<String>, RelOptLattice> latticeByName =
       new LinkedHashMap<>();
 
-  final Map<RelNode, Provenance> provenanceMap;
+  final Map<RelNode, Provenance> provenanceMap = new HashMap<>();
 
   final Deque<VolcanoRuleCall> ruleCallStack = new ArrayDeque<>();
 
@@ -276,9 +264,6 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     super(costFactory == null ? VolcanoCost.FACTORY : costFactory, //
         externalContext);
     this.zeroCost = this.costFactory.makeZeroCost();
-    // If LOGGER is debug enabled, enable provenance information to be captured
-    this.provenanceMap = LOGGER.isDebugEnabled() ? new HashMap<>()
-        : Util.blackholeMap();
   }
 
   //~ Methods ----------------------------------------------------------------
@@ -438,7 +423,6 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     this.ruleNames.clear();
     this.materializations.clear();
     this.latticeByName.clear();
-    this.provenanceMap.clear();
   }
 
   public List<RelOptRule> getRules() {
@@ -660,9 +644,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
       LOGGER.debug(
           "Cheapest plan:\n{}", RelOptUtil.toString(cheapest, SqlExplainLevel.ALL_ATTRIBUTES));
 
-      if (!provenanceMap.isEmpty()) {
-        LOGGER.debug("Provenance:\n{}", provenance(cheapest));
-      }
+      LOGGER.debug("Provenance:\n{}", provenance(cheapest));
     }
     return cheapest;
   }
@@ -906,25 +888,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
   }
 
   public void registerAbstractRelationalRules() {
-    addRule(FilterJoinRule.FILTER_ON_JOIN);
-    addRule(FilterJoinRule.JOIN);
-    addRule(AbstractConverter.ExpandConversionRule.INSTANCE);
-    addRule(JoinCommuteRule.INSTANCE);
-    addRule(SemiJoinRule.PROJECT);
-    addRule(SemiJoinRule.JOIN);
-    if (CalciteSystemProperty.COMMUTE.value()) {
-      addRule(JoinAssociateRule.INSTANCE);
-    }
-    addRule(AggregateRemoveRule.INSTANCE);
-    addRule(AggregateMergeRule.INSTANCE);
-    addRule(UnionToDistinctRule.INSTANCE);
-    addRule(ProjectRemoveRule.INSTANCE);
-    addRule(AggregateJoinTransposeRule.INSTANCE);
-    addRule(AggregateProjectMergeRule.INSTANCE);
-    addRule(CalcRemoveRule.INSTANCE);
-    addRule(SortRemoveRule.INSTANCE);
-
-    // todo: rule which makes Project({OrdinalRef}) disappear
+    RelOptUtil.registerAbstractRelationalRules(this);
   }
 
   public void registerSchema(RelOptSchema schema) {
